@@ -6,8 +6,14 @@ import csv
 import time
 import argparse
 
+from lib.log import log
+from lib.max31855 import MAX31855
+from lib.max31856 import MAX31856
+from lib.piface_gpio import PiFaceGPIO
+from lib.temp_sensor import TempSensorSimulated, TempSensorReal
 
-def recordprofile(csvfile, targettemp):
+
+def recordprofile(csvfile, targettemp) -> bool:
 
     try:
         sys.dont_write_bytecode = True
@@ -17,12 +23,12 @@ def recordprofile(csvfile, targettemp):
     except ImportError:
         print("Could not import config file.")
         print("Copy config.py.EXAMPLE to config.py and adapt it for your setup.")
-        exit(1)
+        return False
 
     script_dir = os.path.dirname(os.path.realpath(__file__))
     sys.path.insert(0, script_dir + '/lib/')
 
-    from oven import RealOven, SimulatedOven
+    from lib.oven import RealOven, SimulatedOven
 
     # open the file to log data to
     f = open(csvfile, 'w')
@@ -31,9 +37,42 @@ def recordprofile(csvfile, targettemp):
 
     # construct the oven
     if config.simulate:
-        oven = SimulatedOven()
+        temp_sensor = TempSensorSimulated()
+        oven = SimulatedOven(temp_sensor)
     else:
-        oven = RealOven()
+        gpio = PiFaceGPIO()
+        temp_sensor_gpio = gpio
+
+        if config.max31855:
+            log.info("init MAX31855")
+            thermocouple = MAX31855(
+                temp_sensor_gpio,
+                config.gpio_sensor_cs,
+                config.gpio_sensor_clock,
+                config.gpio_sensor_data,
+                config.temp_scale)
+        elif config.max31856:
+            log.info("init MAX31856")
+            software_spi = \
+                {
+                    'cs': config.gpio_sensor_cs,
+                    'clk': config.gpio_sensor_clock,
+                    'do': config.gpio_sensor_data,
+                    'di': config.gpio_sensor_di
+                }
+            thermocouple = MAX31856(
+                temp_sensor_gpio,
+                tc_type=config.thermocouple_type,
+                software_spi=software_spi,
+                units=config.temp_scale,
+                ac_freq_50hz=config.ac_freq_50hz,
+            )
+        else:
+            print("No thermocouple specified. Select either max31855 or max31856 in config.py")
+            return False
+
+        temp_sensor = TempSensorReal(thermocouple)
+        oven = RealOven(gpio, temp_sensor)
 
     # Main loop:
     #
@@ -46,10 +85,10 @@ def recordprofile(csvfile, targettemp):
     try:
         stage = 'heating'
         if not config.simulate:
-            oven.output.heat(0)
+            oven.output.set(True)
 
         while True:
-            temp = oven.board.temp_sensor.temperature + \
+            temp = oven.temp_sensor.temperature + \
                 config.thermocouple_offset
 
             csvout.writerow([time.time(), temp])
@@ -58,14 +97,14 @@ def recordprofile(csvfile, targettemp):
             if stage == 'heating':
                 if temp >= targettemp:
                     if not config.simulate:
-                        oven.output.cool(0)
+                        oven.output.set(False)
                     stage = 'cooling'
 
             elif stage == 'cooling':
                 if temp < targettemp:
                     break
 
-            print("stage = %s, actual = %s, target = %s" % (stage,temp,targettemp))
+            print("stage = %s, actual = %s, target = %s" % (stage, temp, targettemp))
             time.sleep(1)
 
         f.close()
@@ -73,7 +112,8 @@ def recordprofile(csvfile, targettemp):
     finally:
         # ensure we always shut the oven down!
         if not config.simulate:
-            oven.output.cool(0)
+            oven.output.set(False)
+    return True
 
 
 def line(a, b, x):
@@ -101,7 +141,10 @@ def plot(xdata, ydata,
 
     pyplot.plot(tangent_min[0], tangent_min[1], 'v', color='red')
     pyplot.plot(tangent_max[0], tangent_max[1], 'v', color='red')
-    pyplot.plot([minx, maxx], [line(tangent_slope, tangent_offset, minx), line(tangent_slope, tangent_offset, maxx)], '--', color='red')
+    pyplot.plot([minx, maxx],
+                [line(tangent_slope, tangent_offset, minx), line(tangent_slope, tangent_offset, maxx)],
+                '--',
+                color='red')
 
     pyplot.plot([lower_crossing_x, lower_crossing_x], [miny, maxy], '--', color='black')
     pyplot.plot([upper_crossing_x, upper_crossing_x], [miny, maxy], '--', color='black')
@@ -117,12 +160,12 @@ def calculate(filename, tangentdivisor, showplot):
     with open(filename) as f:
         for row in csv.DictReader(f):
             try:
-                time = float(row['time'])
+                time_ = float(row['time'])
                 temp = float(row['temperature'])
                 if filemintime is None:
-                    filemintime = time
+                    filemintime = time_
 
-                xdata.append(time - filemintime)
+                xdata.append(time_ - filemintime)
                 ydata.append(temp)
             except ValueError:
                 continue  # just ignore bad values!
@@ -162,10 +205,9 @@ def calculate(filename, tangentdivisor, showplot):
     Kd = Kp * Td
 
     # output to the user
-    print("pid_kp = %s" % (Kp))
+    print("pid_kp = %s" % Kp)
     print("pid_ki = %s" % (1 / Ki))
-    print("pid_kd = %s" % (Kd))
-
+    print("pid_kd = %s" % Kd)
 
     if showplot:
         plot(xdata, ydata,
@@ -180,19 +222,36 @@ if __name__ == "__main__":
 
     parser_profile = subparsers.add_parser('recordprofile', help='Record kiln temperature profile')
     parser_profile.add_argument('csvfile', type=str, help="The CSV file to write to.")
-    parser_profile.add_argument('--targettemp', type=int, default=400, help="The target temperature to drive the kiln to (default 400).")
+    parser_profile.add_argument(
+        '--targettemp',
+        type=int,
+        default=400,
+        help="The target temperature to drive the kiln to (default 400).")
     parser_profile.set_defaults(mode='recordprofile')
 
     parser_zn = subparsers.add_parser('zn', help='Calculate Ziegler-Nicols parameters')
-    parser_zn.add_argument('csvfile', type=str, help="The CSV file to read from. Must contain two columns called time (time in seconds) and temperature (observed temperature)")
-    parser_zn.add_argument('--showplot', action='store_true', help="If set, also plot results (requires pyplot to be pip installed)")
-    parser_zn.add_argument('--tangentdivisor', type=float, default=8, help="Adjust the tangent calculation to fit better. Must be >= 2 (default 8).")
+    parser_zn.add_argument(
+        'csvfile',
+        type=str,
+        help="The CSV file to read from. Must contain two columns called time "
+             "(time in seconds) and temperature (observed temperature)")
+    parser_zn.add_argument(
+        '--showplot',
+        action='store_true',
+        help="If set, also plot results (requires pyplot to be pip installed)")
+    parser_zn.add_argument(
+        '--tangentdivisor',
+        type=float,
+        default=8,
+        help="Adjust the tangent calculation to fit better. "
+             "Must be >= 2 (default 8).")
     parser_zn.set_defaults(mode='zn')
 
     args = parser.parse_args()
 
     if args.mode == 'recordprofile':
-        recordprofile(args.csvfile, args.targettemp)
+        if not recordprofile(args.csvfile, args.targettemp):
+            exit(1)
 
     elif args.mode == 'zn':
         if args.tangentdivisor < 2:

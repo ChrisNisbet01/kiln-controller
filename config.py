@@ -16,7 +16,7 @@ listening_ip = "0.0.0.0"
 listening_port = 8081
 
 ### Cost Estimate
-kwh_rate        = 0.1319  # Rate in currency_type to calculate cost to run job
+kwh_rate        = 0.30  # Rate in currency_type to calculate cost to run job
 currency_type   = "$"   # Currency Symbol to show when calculating cost to run job
 
 ########################################################################
@@ -29,7 +29,12 @@ currency_type   = "$"   # Currency Symbol to show when calculating cost to run j
 #   can use whichever GPIO you prefer/have available.
 
 ### Outputs
-gpio_heat = 23  # Switches zero-cross solid-state-relay
+DIRECT_GPIO: str = "Direct"
+PIFACE_GPIO: str = "PiFace"
+gpio_type: str = PIFACE_GPIO
+
+gpio_enable = 0  # Master enable contactor
+gpio_heat = 1  # Switches zero-cross solid-state-relay
 
 ### Thermocouple Adapter selection:
 #   max31855 - bitbang SPI interface
@@ -41,6 +46,10 @@ max31856 = 0
 #thermocouple_type = MAX31856.MAX31856_S_TYPE
 
 ### Thermocouple Connection (using bitbang interfaces)
+#gpio_sensor_cs = 2
+#gpio_sensor_clock = 3
+#gpio_sensor_data = 4
+#gpio_sensor_di = 5
 gpio_sensor_cs = 27
 gpio_sensor_clock = 22
 gpio_sensor_data = 17
@@ -49,9 +58,9 @@ gpio_sensor_di = 10 # only used with max31856
 ########################################################################
 #
 # duty cycle of the entire system in seconds
-# 
-# Every N seconds a decision is made about switching the relay[s] 
-# on & off and for how long. The thermocouple is read 
+#
+# Every N seconds a decision is made about switching the relay[s]
+# on & off and for how long. The thermocouple is read
 # temperature_average_samples times during and the average value is used.
 sensor_time_wait = 2
 
@@ -60,14 +69,19 @@ sensor_time_wait = 2
 #
 #   PID parameters
 #
-# These parameters control kiln temperature change. These settings work
-# well with the simulated oven. You must tune them to work well with 
-# your specific kiln. Note that the integral pid_ki is
+# These parameters control kiln temperature change. You must tune them
+# to work well with your specific kiln.
+# Note that the integral pid_ki is
 # inverted so that a smaller number means more integral action.
 pid_kp = 25   # Proportional
 pid_ki = 200  # Integral
 pid_kd = 200  # Derivative
 
+# The simulated oven has separate PID parameters.
+# These settings work well with the simulated oven.
+simulated_pid_kp = 10   # Proportional
+simulated_pid_ki = 50  # Integral
+simulated_pid_kd = 50  # Derivative
 
 ########################################################################
 #
@@ -84,11 +98,12 @@ stop_integral_windup = True
 #
 #   Simulation parameters
 simulate = True
-sim_t_env      = 60.0   # deg C
+sim_speed = 10          # The speed the simulator runs at (1 ~= realtime, >1 = faster)
+sim_t_env      = 21.0   # deg C
 sim_c_heat     = 100.0  # J/K  heat capacity of heat element
 sim_c_oven     = 5000.0 # J/K  heat capacity of oven
-sim_p_heat     = 5450.0 # W    heating power of oven
-sim_R_o_nocool = 0.1    # K/W  thermal resistance oven -> environment
+sim_p_heat     = 10000.0 # W    heating power of oven
+sim_R_o_nocool = 0.3    # K/W  thermal resistance oven -> environment
 sim_R_o_cool   = 0.05   # K/W  " with cooling
 sim_R_ho_noair = 0.1    # K/W  thermal resistance heat element -> oven
 sim_R_ho_air   = 0.05   # K/W  " with internal air circulation
@@ -101,7 +116,7 @@ sim_R_ho_air   = 0.05   # K/W  " with internal air circulation
 # If you change the temp_scale, all settings in this file are assumed to
 # be in that scale.
 
-temp_scale          = "f" # c = Celsius | f = Fahrenheit - Unit to display
+temp_scale          = "c" # c = Celsius | f = Fahrenheit - Unit to display
 time_scale_slope    = "h" # s = Seconds | m = Minutes | h = Hours - Slope displayed in temp_scale per time_scale_slope
 time_scale_profile  = "m" # s = Seconds | m = Minutes | h = Hours - Enter and view target time in time_scale_profile
 
@@ -124,19 +139,19 @@ kiln_must_catch_up_max_error = 5 #degrees
 # If you put your thermocouple in ice water and it reads 36F, you can
 # set set this offset to -4 to compensate.  This probably means you have a
 # cheap thermocouple.  Invest in a better thermocouple.
-thermocouple_offset=0
+thermocouple_offset = 0.0
 
-# some kilns/thermocouples start erroneously reporting "short" 
+# some kilns/thermocouples start erroneously reporting "short"
 # errors at higher temperatures due to plasma forming in the kiln.
-# Set this to False to ignore these errors and assume the temperature 
+# Set this to False to ignore these errors and assume the temperature
 # reading was correct anyway
 honour_theromocouple_short_errors = False
 
 # number of samples of temperature to average.
-# If you suffer from the high temperature kiln issue and have set 
+# If you suffer from the high temperature kiln issue and have set
 # honour_theromocouple_short_errors to False,
 # you will likely need to increase this (eg I use 40)
-temperature_average_samples = 40 
+temperature_average_samples = 40
 
 # Thermocouple AC frequency filtering - set to True if in a 50Hz locale, else leave at False for 60Hz locale
 ac_freq_50hz = False

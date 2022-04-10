@@ -1,16 +1,18 @@
-#!/usr/bin/python
-import RPi.GPIO as GPIO
 import math
 
-class MAX31855(object):
-    '''Python driver for [MAX38155 Cold-Junction Compensated Thermocouple-to-Digital Converter](http://www.maximintegrated.com/datasheet/index.mvp/id/7273)
+from lib.gpio import GPIOBase
+from lib.rpi_gpio import PiGPIO
+
+
+class MAX31855:
+    """Python driver for [MAX38155 Cold-Junction Compensated Thermocouple-to-Digital Converter](http://www.maximintegrated.com/datasheet/index.mvp/id/7273)
      Requires:
      - The [GPIO Library](https://code.google.com/p/raspberry-gpio-python/) (Already on most Raspberry Pi OS builds)
      - A [Raspberry Pi](http://www.raspberrypi.org/)
 
-    '''
-    def __init__(self, cs_pin, clock_pin, data_pin, units = "c", board = GPIO.BCM):
-        '''Initialize Soft (Bitbang) SPI bus
+    """
+    def __init__(self, gpio: GPIOBase, cs_pin, clock_pin, data_pin, units = "c"):
+        """Initialize Soft (Bitbang) SPI bus
 
         Parameters:
         - cs_pin:    Chip Select (CS) / Slave Select (SS) pin (Any GPIO)
@@ -19,29 +21,28 @@ class MAX31855(object):
         - units:     (optional) unit of measurement to return. ("c" (default) | "k" | "f")
         - board:     (optional) pin numbering method as per RPi.GPIO library (GPIO.BCM (default) | GPIO.BOARD)
 
-        '''
+        """
+        self.name = "MAX31855"
+        self.gpio = gpio
         self.cs_pin = cs_pin
         self.clock_pin = clock_pin
         self.data_pin = data_pin
         self.units = units
         self.data = None
-        self.board = board
         self.noConnection = self.shortToGround = self.shortToVCC = self.unknownError = False
 
         # Initialize needed GPIO
-        GPIO.setmode(self.board)
-        GPIO.setup(self.cs_pin, GPIO.OUT)
-        GPIO.setup(self.clock_pin, GPIO.OUT)
-        GPIO.setup(self.data_pin, GPIO.IN)
+        self.gpio.setup_pin(self.cs_pin, True)
+        self.gpio.setup_pin(self.clock_pin, True)
+        self.gpio.setup_pin(self.data_pin, False)
 
         # Pull chip select high to make chip inactive
-        GPIO.output(self.cs_pin, GPIO.HIGH)
+        self.gpio.set_pin(self.cs_pin, False)
 
-    def get(self):
+    def get(self) -> float:
         '''Reads SPI bus and returns current value of thermocouple.'''
         self.read()
         self.checkErrors()
-        #return getattr(self, "to_" + self.units)(self.data_to_tc_temperature())
         return getattr(self, "to_" + self.units)(self.data_to_LinearizedTempC())
 
     def get_rj(self):
@@ -53,16 +54,16 @@ class MAX31855(object):
         '''Reads 32 bits of the SPI bus & stores as an integer in self.data.'''
         bytesin = 0
         # Select the chip
-        GPIO.output(self.cs_pin, GPIO.LOW)
+        self.gpio.set_pin(self.cs_pin, False)
         # Read in 32 bits
         for i in range(32):
-            GPIO.output(self.clock_pin, GPIO.LOW)
+            self.gpio.set_pin(self.clock_pin, False)
             bytesin = bytesin << 1
-            if (GPIO.input(self.data_pin)):
+            if self.gpio.get_pin(self.data_pin):
                 bytesin = bytesin | 1
-            GPIO.output(self.clock_pin, GPIO.HIGH)
+            self.gpio.set_pin(self.clock_pin, True)
         # Unselect the chip
-        GPIO.output(self.cs_pin, GPIO.HIGH)
+        self.gpio.set_pin(self.cs_pin, True)
         # Save data
         self.data = bytesin
 
@@ -128,8 +129,8 @@ class MAX31855(object):
 
     def cleanup(self):
         '''Selective GPIO cleanup'''
-        GPIO.setup(self.cs_pin, GPIO.IN)
-        GPIO.setup(self.clock_pin, GPIO.IN)
+        self.gpio.setup_pin(self.cs_pin, False)
+        self.gpio.setup_pin(self.clock_pin, False)
 
     def data_to_LinearizedTempC(self, data_32 = None):
         '''Return the NIST-linearized thermocouple temperature value in degrees
@@ -246,7 +247,7 @@ if __name__ == "__main__":
     units = "f"
     thermocouples = []
     for cs_pin in cs_pins:
-        thermocouples.append(MAX31855(cs_pin, clock_pin, data_pin, units))
+        thermocouples.append(MAX31855(PiGPIO(), cs_pin, clock_pin, data_pin, units))
     running = True
     while(running):
         try:

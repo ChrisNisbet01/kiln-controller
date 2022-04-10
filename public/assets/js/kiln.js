@@ -1,4 +1,4 @@
-var state = "IDLE";
+var state = "Idle";
 var state_last = "";
 var graph = [ 'profile', 'live'];
 var points = [];
@@ -74,7 +74,7 @@ function deleteProfile()
     ws_storage.send('GET');
     selected_profile_name = profiles[0].name;
 
-    state="IDLE";
+    state="Idle";
     $('#edit').hide();
     $('#profile_selector').show();
     $('#btn_controls').show();
@@ -89,7 +89,7 @@ function deleteProfile()
 
 function updateProgress(percentage)
 {
-    if(state=="RUNNING")
+    if(state=="Running")
     {
         if(percentage > 100) percentage = 100;
         $('#progressBar').css('width', percentage+'%');
@@ -279,7 +279,7 @@ function leaveEditMode()
 {
     selected_profile_name = $('#form_profile_name').val();
     ws_storage.send('GET');
-    state="IDLE";
+    state="Idle";
     $('#edit').hide();
     $('#profile_selector').show();
     $('#btn_controls').show();
@@ -517,7 +517,7 @@ $(document).ready(function()
 
                 if (state!=state_last)
                 {
-                    if(state_last == "RUNNING")
+                    if(state_last == "Running")
                     {
                         $('#target_temp').html('---');
                         updateProgress(0);
@@ -534,7 +534,7 @@ $(document).ready(function()
                     }
                 }
 
-                if(state=="RUNNING")
+                if(state=="Running")
                 {
                     $("#nav_start").hide();
                     $("#nav_stop").show();
@@ -559,6 +559,7 @@ $(document).ready(function()
                 }
 
                 $('#act_temp').html(parseInt(x.temperature));
+                $('#oven_load').html(parseFloat(x.load_percent).toFixed(1));
 
 		if (x.heat > 0.0) {
 	            setTimeout(function() { $('#heat').addClass("ds-led-heat-active") }, 0 )

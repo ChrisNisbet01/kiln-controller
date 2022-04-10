@@ -15,6 +15,7 @@ STD_HEADER = [
     'target',
     'state',
     'heat',
+    'load_percent'
     'totaltime',
     'profile',
 ]
@@ -92,10 +93,21 @@ def logger(hostname, csvfile, noprofilestats, pidstats, stdout):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Log kiln data for analysis.')
-    parser.add_argument('--hostname', type=str, default="localhost:8081", help="The kiln-controller hostname:port")
-    parser.add_argument('--csvfile', type=str, default="/tmp/kilnstats.csv", help="Where to write the kiln stats to")
+    parser.add_argument(
+        '--hostname',
+        type=str,
+        default="localhost:8081",
+        help="The kiln-controller hostname:port")
+    parser.add_argument(
+        '--csvfile',
+        type=str,
+        default="/tmp/kilnstats.csv",
+        help="Where to write the kiln stats to")
     parser.add_argument('--pidstats', action='store_true', help="Include PID stats")
-    parser.add_argument('--noprofilestats', action='store_true', help="Do not store profile stats (default is to store them)")
+    parser.add_argument(
+        '--noprofilestats',
+        action='store_true',
+        help="Do not store profile stats (default is to store them)")
     parser.add_argument('--stdout', action='store_true', help="Also print to stdout")
     args = parser.parse_args()
 

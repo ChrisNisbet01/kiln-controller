@@ -30,12 +30,14 @@ import warnings
 import Adafruit_GPIO as Adafruit_GPIO
 import Adafruit_GPIO.SPI as SPI
 
+from lib.gpio import GPIOBase
+from lib.rpi_gpio import PiGPIO
 
-class MAX31856(object):
+
+class MAX31856:
     """Class to represent an Adafruit MAX31856 thermocouple temperature
     measurement board.
     """
-
     # Board Specific Constants
     MAX31856_CONST_THERM_LSB = 2**-7
     MAX31856_CONST_THERM_BITS = 19
@@ -89,7 +91,7 @@ class MAX31856(object):
     MAX31856_S_TYPE = 0x6 # Read S Type Thermocouple
     MAX31856_T_TYPE = 0x7 # Read T Type Thermocouple
 
-    def __init__(self, tc_type=MAX31856_S_TYPE, units="c", avgsel=0x0, ac_freq_50hz=False, ocdetect=0x1, software_spi=None, hardware_spi=None, gpio=None):
+    def __init__(self, gpio: GPIOBase, tc_type=MAX31856_S_TYPE, units="c", avgsel=0x0, ac_freq_50hz=False, ocdetect=0x1, software_spi=None, hardware_spi=None):
         """
         Initialize MAX31856 device with software SPI on the specified CLK,
         CS, and DO pins.  Alternatively can specify hardware SPI by sending an
@@ -109,6 +111,13 @@ class MAX31856(object):
                 di (integer): Pin number for software SPI MOSI
             hardware_spi (SPI.SpiDev): If using hardware SPI, define the connection
         """
+        self.name = "MAX31856"
+        self.noConnection = False
+        self.shortToGround = False
+        self.shortToVCC = False
+        self.unknownError = False
+
+        self.gpio = gpio
         self._logger = logging.getLogger('Adafruit_MAX31856.MAX31856')
         self._spi = None
         self.tc_type = tc_type
@@ -143,6 +152,9 @@ class MAX31856(object):
         self._write_register(self.MAX31856_REG_WRITE_CR0, 0)
         self._write_register(self.MAX31856_REG_WRITE_CR1, self.cr1)
         self._write_register(self.MAX31856_REG_WRITE_CR0, self.cr0)
+
+    def cleanup(self):
+        pass
 
     @staticmethod
     def _cj_temp_from_bytes(msb, lsb):
@@ -281,14 +293,14 @@ class MAX31856(object):
     def readTempC(self):    #pylint: disable-msg=invalid-name
         """Depreciated due to Python naming convention, use read_temp_c instead
         """
-        warnings.warn("Depreciated due to Python naming convention, use read_temp_c() instead", DeprecationWarning)
-        return read_temp_c(self)
+        warnings.warn("Deprecated due to Python naming convention, use read_temp_c() instead", DeprecationWarning)
+        return self.read_temp_c()
 
     def readInternalTempC(self):    #pylint: disable-msg=invalid-name
         """Depreciated due to Python naming convention, use read_internal_temp_c instead
         """
         warnings.warn("Depreciated due to Python naming convention, use read_internal_temp_c() instead", DeprecationWarning)
-        return read_internal_temp_c(self)
+        return self.read_internal_temp_c()
 
     # added by jbruce to mimic MAX31855 lib
     def to_c(self, celsius):
@@ -308,7 +320,7 @@ class MAX31856(object):
         self.noConnection = (data & 0x00000001) != 0
         self.unknownError = (data & 0xfe) != 0
 
-    def get(self):
+    def get(self) -> float:
         self.checkErrors()
         celcius = self.read_temp_c()
         return getattr(self, "to_" + self.units)(celcius)
@@ -325,7 +337,7 @@ if __name__ == "__main__":
     units = "c"
     thermocouples = []
     for cs_pin in cs_pins:
-        thermocouples.append(MAX31856(avgsel=0, ac_freq_50hz=True, tc_type=MAX31856.MAX31856_K_TYPE, software_spi={'clk': clock_pin, 'cs': cs_pin, 'do': data_pin, 'di': di_pin}, units=units))
+        thermocouples.append(MAX31856(PiGPIO(), avgsel=0, ac_freq_50hz=True, tc_type=MAX31856.MAX31856_K_TYPE, software_spi={'clk': clock_pin, 'cs': cs_pin, 'do': data_pin, 'di': di_pin}, units=units))
 
     running = True
     while(running):

@@ -13,13 +13,13 @@
  <script src="assets/js/bootstrap.min.js"></script>
  <script src="assets/js/jquery.bootstrap-growl.min.js"></script>
  <script src="assets/js/select2.min.js"></script>
- <script src="assets/js/picoreflow.js"></script>
+ <script src="assets/js/kiln.js"></script>
 
  <link rel="stylesheet" href="assets/css/bootstrap.min.css"/>
  <link rel="stylesheet" href="assets/css/bootstrap-theme.min.css"/>
  <link rel="stylesheet" href="assets/css/bootstrap-modal.css"/>
  <link rel="stylesheet" href="assets/css/select2.css"/>
- <link rel="stylesheet" href="assets/css/picoreflow.css"/>
+ <link rel="stylesheet" href="assets/css/kiln.css"/>
 
 </head>
 <body>
@@ -28,14 +28,17 @@
   <div id="status">
    <div class="ds-title-panel">
     <div class="ds-title">Sensor Temp</div>
+    <div class="ds-title">Oven Load</div>
     <div class="ds-title">Target Temp</div>
+    <div class="ds-title ds-run-state">State</div>
     <div class="ds-title ds-state pull-right" style="border-left: 1px solid #ccc;">Status</div>
    </div>
    <div class="clearfix"></div>
    <div class="ds-panel">
     <div class="display ds-num"><span id="act_temp">25</span><span class="ds-unit" id="act_temp_scale" >&deg;C</span></div>
+    <div class="display ds-num"><span id="oven_load">0</span><span class="ds-unit" >%</span></div>
     <div class="display ds-num ds-target"><span id="target_temp">---</span><span class="ds-unit" id="target_temp_scale">&deg;C</span></div>
-    <div class="display ds-num ds-text" id="state"></div>
+    <div class="display ds-num ds-run-state ds-text" id="state"></div>
     <div class="display pull-right ds-state" style="padding-right:0"><span class="ds-led" id="heat">&#92;</span><span class="ds-led" id="cool">&#108;</span><span class="ds-led" id="air">&#91;</span><span class="ds-led" id="hazard">&#73;</span><span class="ds-led" id="door">&#9832;</span></div>
    </div>
    <div class="clearfix"></div>
