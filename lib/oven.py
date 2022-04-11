@@ -91,6 +91,9 @@ class Oven(Thread):
     _load_percent: float = 0
     temp_sensor: TempSensor
     _start_time: datetime.datetime
+    _are_catching_up: bool = False
+    _catchup_start_time: datetime.datetime
+    _total_catch_up_secs: float = 0
     _state: OvenState
     _profile: Optional[Profile] = None
     _runtime_secs: float = 0
@@ -135,12 +138,14 @@ class Oven(Thread):
         self._state = OvenState.IDLE
         self._profile = None
         self._start_time = oven_time.now()
+        self._total_catch_up_secs = 0
         self._runtime_secs = 0
         self._total_time_secs = 0
         self._target_temp = 0
         self._heat = 0
         self._load_percent = 0
         self._pid = PID(self._pid_params)
+        self._are_catching_up = False
 
     def run_profile(self, profile: Profile, start_at_minute: float = 0) -> None:
         data = ProfileData(profile=profile, start_at_minute=start_at_minute)
@@ -172,25 +177,53 @@ class Oven(Thread):
     def abort_run(self) -> None:
         self._send_message(OvenMessageCode.ABORT_RUN)
 
+    def _catch_up_on(self):
+        if not self._are_catching_up:
+            self._are_catching_up = True
+            self._catchup_start_time = oven_time.now()
+
+    def _catch_up_off(self):
+        if self._are_catching_up:
+            self._are_catching_up = False
+            catch_up_time = oven_time.now() - self._catchup_start_time
+            self._total_catch_up_secs += catch_up_time.total_seconds()
+
     def kiln_must_catch_up(self) -> None:
-        """shift the whole schedule forward in time by one time_step
-        to wait for the kiln to catch up"""
-        if config.kiln_must_catch_up:
-            temp = self.temp_sensor.temperature
-            # kiln too cold, wait for it to heat up
-            if self._target_temp - temp > config.kiln_must_catch_up_max_error:
-                log.info("kiln must catch up, too cold, shifting schedule")
-                self._start_time = oven_time.now() - datetime.timedelta(milliseconds=self._runtime_secs * 1000)
-            # kiln too hot, wait for it to cool down
-            if temp - self._target_temp > config.kiln_must_catch_up_max_error:
-                log.info("kiln must catch up, too hot, shifting schedule")
-                self._start_time = oven_time.now() - datetime.timedelta(milliseconds=self._runtime_secs * 1000)
+        """
+        Determine if the kiln temperature needs to catch up. If true, start
+        timing how long the oven is in catch up mode, and stop timing once the
+        oven has caught up. This catch up time is accumulated and subtracted
+        from the profile's runtime.
+
+        :return: True if the kiln is catching up, else False.
+        """
+        if not config.kiln_must_catch_up:
+            self._catch_up_off()
+            return
+
+        temperature = self.temp_sensor.temperature
+
+        is_too_cold = self._target_temp - temperature > config.kiln_must_catch_up_max_error
+        if is_too_cold:
+            log.info("too cold - kiln must catch up")
+            self._catch_up_on()
+            return
+
+        is_too_hot = temperature - self._target_temp > config.kiln_must_catch_up_max_error
+        if is_too_hot:
+            log.info("too hot - kiln must catch up")
+            self._catch_up_on()
+            return
+
+        self._catch_up_off()
 
     def update_runtime(self) -> None:
+        if self._are_catching_up:
+            return
         runtime_delta = oven_time.now() - self._start_time
         if runtime_delta.total_seconds() < 0:
             runtime_delta = datetime.timedelta(0)
-        self._runtime_secs = self._start_at_secs + runtime_delta.total_seconds()
+        self._runtime_secs = self._start_at_secs + runtime_delta.total_seconds() - self._total_catch_up_secs
 
     def update_target_temp(self) -> None:
         self._target_temp = self._profile.get_target_temperature(self._runtime_secs) if self._profile else 0
@@ -279,13 +312,13 @@ class Oven(Thread):
             log.info("Starting")
             self._update_oven()
         elif msg.code == OvenMessageCode.EXPIRED_TIMER:
-            log.info("Expired timer")
+            log.debug("Expired timer")
             self._update_oven()
         elif msg.code == OvenMessageCode.GET_STATE:
             q: Queue = msg.data
             q.put(self._runtime_info)
         else:
-            log.info(f"Oven ignoring message code: {msg.code.name}")
+            log.debug(f"Oven ignoring message code: {msg.code.name}")
 
     def _update_oven(self) -> None:
         if self._state == OvenState.RUNNING:
