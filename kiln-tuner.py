@@ -71,7 +71,7 @@ def recordprofile(csvfile, targettemp) -> bool:
             print("No thermocouple specified. Select either max31855 or max31856 in config.py")
             return False
 
-        temp_sensor = TempSensorReal(thermocouple)
+        temp_sensor = TempSensorReal(thermocouple, config.thermocouple_offset)
         oven = RealOven(gpio, temp_sensor)
 
     # Main loop:
@@ -88,8 +88,7 @@ def recordprofile(csvfile, targettemp) -> bool:
             oven.output.set(True)
 
         while True:
-            temp = oven.temp_sensor.temperature + \
-                config.thermocouple_offset
+            temp = oven.temp_sensor.temperature
 
             csvout.writerow([time.time(), temp])
             f.flush()

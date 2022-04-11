@@ -91,9 +91,11 @@ class TempSensorReal(Thread):
     _time_step: float
     _queue: Queue
     _timer: OvenTimer
+    _thermocouple_offset: float
 
-    def __init__(self, thermocouple: Thermocouple) -> None:
+    def __init__(self, thermocouple: Thermocouple, thermocouple_offset: float = 0) -> None:
         super().__init__()
+        self._thermocouple_offset = thermocouple_offset
         self._queue = Queue()
         self._timer = OvenTimer(self._timeout)
         self.daemon = True
@@ -157,7 +159,7 @@ class TempSensorReal(Thread):
     @property
     def _status(self) -> TempSensorStatus:
         return TempSensorStatus(
-            temperature=self._temperature,
+            temperature=self._temperature + self._thermocouple_offset,
             bad_count=self._bad_count,
             bad_percent=self._bad_percent,
             bad_stamp=self._bad_stamp,

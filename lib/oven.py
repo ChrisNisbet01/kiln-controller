@@ -176,7 +176,7 @@ class Oven(Thread):
         """shift the whole schedule forward in time by one time_step
         to wait for the kiln to catch up"""
         if config.kiln_must_catch_up:
-            temp = self.temp_sensor.temperature + config.thermocouple_offset
+            temp = self.temp_sensor.temperature
             # kiln too cold, wait for it to heat up
             if self._target_temp - temp > config.kiln_must_catch_up_max_error:
                 log.info("kiln must catch up, too cold, shifting schedule")
@@ -190,11 +190,7 @@ class Oven(Thread):
         runtime_delta = oven_time.now() - self._start_time
         if runtime_delta.total_seconds() < 0:
             runtime_delta = datetime.timedelta(0)
-
-        if self._start_at_secs > 0:
-            self._runtime_secs = self._start_at_secs + runtime_delta.total_seconds()
-        else:
-            self._runtime_secs = runtime_delta.total_seconds()
+        self._runtime_secs = self._start_at_secs + runtime_delta.total_seconds()
 
     def update_target_temp(self) -> None:
         self._target_temp = self._profile.get_target_temperature(self._runtime_secs) if self._profile else 0
@@ -203,8 +199,7 @@ class Oven(Thread):
         """reset if the temperature is way TOO HOT, or other critical errors detected"""
         should_reset = False
         temp_sensor_status = self.temp_sensor.status
-        if (temp_sensor_status.temperature + config.thermocouple_offset
-                >= config.emergency_shutoff_temp):
+        if temp_sensor_status.temperature >= config.emergency_shutoff_temp:
             log.info("emergency!!! temperature too high.")
             should_reset = True
 
@@ -251,7 +246,7 @@ class Oven(Thread):
         """
         state = {
             'runtime': self._runtime_secs,
-            'temperature': self.temp_sensor.temperature + config.thermocouple_offset,
+            'temperature': self.temp_sensor.temperature,
             'target': self._target_temp,
             'state': self._state.name.capitalize(),
             'heat': self._heat,
@@ -373,13 +368,11 @@ class SimulatedOven(Oven):
 
         self.heating_energy(0)
         self.temp_changes()
-        log.info(f"temp: {self.temp_sensor.temperature + config.thermocouple_offset:.2f}")
+        log.info(f"temp: {self.temp_sensor.temperature:.2f}")
         self._timer.start(self.time_step / self._sim_speed)
 
     def heat_then_cool(self) -> None:
-        pid = self._pid.compute(self._target_temp,
-                                self.temp_sensor.temperature +
-                                config.thermocouple_offset)
+        pid = self._pid.compute(self._target_temp, self.temp_sensor.temperature)
         heat_on_secs = float(self.time_step * pid)
         heat_off_secs = self.time_step - heat_on_secs
 
@@ -403,7 +396,7 @@ class SimulatedOven(Oven):
         time_left = self._total_time_secs - self._runtime_secs
         log.info("temp=%.2f, target=%.2f, pid=%.3f, heat_on=%.2f, "
                  "heat_off=%.2f, run_time=%d, total_time=%d, time_left=%d"
-                 % (self.temp_sensor.temperature + config.thermocouple_offset,
+                 % (self.temp_sensor.temperature,
                     self._target_temp,
                     pid,
                     heat_on_secs,
@@ -463,9 +456,8 @@ class RealOven(Oven):
                 timer_interval = self.time_step - self._heat_on_secs
         if not was_heating or was_100_percent_heating:
             # Time to calculate the next heating time
-            pid = self._pid.compute(self._target_temp,
-                                    self.temp_sensor.temperature +
-                                    config.thermocouple_offset)
+            pid = self._pid.compute(
+                self._target_temp, self.temp_sensor.temperature)
             heat_on_secs = float(self.time_step * pid)
 
             # self.heat is for the front end to display if the heat is on
@@ -482,7 +474,7 @@ class RealOven(Oven):
             time_left = self._total_time_secs - self._runtime_secs
             log.info("temp=%.2f, target=%.2f, pid=%.3f, heat_on_secs=%.2f, "
                      "heat_off_secs=%.2f, run_time=%d, total_time=%d, time_left=%d" %
-                     (self.temp_sensor.temperature + config.thermocouple_offset,
+                     (self.temp_sensor.temperature,
                       self._target_temp,
                       pid,
                       heat_on_secs,

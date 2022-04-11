@@ -72,7 +72,7 @@ def create_oven() -> Optional[Oven]:
         # Note that temp sensor and heater outputs accessing the PiFace module on different threads
         # doesn't work - would need a lock. Doesn't really make sense to use PiFace GPIO to bitbang
         # thermocouple SPI anyway, so should use Pi GPIO for the thermocouple (faster if nothing else).
-        # temp_sensor = TempSensorReal(thermocouple)
+        # temp_sensor = TempSensorReal(thermocouple, config.thermocouple_offset)
         temp_sensor = TempSensorSimulated()
         oven_ = RealOven(output_gpio, temp_sensor)
     return oven_
