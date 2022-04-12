@@ -168,6 +168,7 @@ class _KilnServer:
         log.info("websocket (config) opened")
         while True:
             try:
+                wsock.receive()
                 wsock.send(get_config())
             except WebSocketError:
                 break
