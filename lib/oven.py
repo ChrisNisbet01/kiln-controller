@@ -271,14 +271,24 @@ class Oven(Thread):
         return state
 
     @property
+    def _total_runtime(self):
+        if self._state == OvenState.RUNNING:
+            total_runtime = (oven_time.now() - self._start_time).total_seconds()
+        else:
+            total_runtime = 0.0
+        return total_runtime
+
+    @property
     def _runtime_info(self) -> dict:
         """
         Called by the Oven thread. Returns runtime info to be written
         back to a queue supplied by the calling thread in the runtime_info
         method.
         """
+
         state = {
             'runtime': self._runtime_secs,
+            'total_runtime': self._total_runtime,
             'temperature': self.temp_sensor.temperature,
             'target': self._target_temp,
             'state': self._state.name.capitalize(),
