@@ -5,11 +5,11 @@ from typing import Optional, Any
 
 from geventwebsocket.websocket import WebSocket
 
+from lib.gpio import get_gpio
 from lib.oven import SimulatedOven, RealOven, Oven, Profile
 from lib.ovenWatcher import OvenWatcher
 from lib.rpi_gpio import PiGPIO
 from lib.temp_sensor import TempSensorSimulated, TempSensorReal
-from lib.piface_gpio import PiFaceGPIO
 from lib.thermocouple import ThermocoupleCreate
 from web_server import create_web_server
 
@@ -34,9 +34,7 @@ def create_oven() -> Optional[Oven]:
         oven = SimulatedOven(temp_sensor)
     else:
         log.info("Full operation mode")
-        gpio_types = {config.PIFACE_GPIO: PiFaceGPIO, config.DIRECT_GPIO: PiGPIO}
-        gpio_type = gpio_types[config.gpio_type]
-        output_gpio = gpio_type()
+        output_gpio = get_gpio(config.gpio_type)
         temp_sensor_gpio = PiGPIO()
 
         thermocouple = ThermocoupleCreate(config.THERMOCOUPLE_TYPE, temp_sensor_gpio)

@@ -6,7 +6,8 @@ import csv
 import time
 import argparse
 
-from lib.piface_gpio import PiFaceGPIO
+from lib.gpio import get_gpio
+from lib.rpi_gpio import PiGPIO
 from lib.temp_sensor import TempSensorSimulated, TempSensorReal
 from lib.thermocouple import ThermocoupleCreate
 
@@ -38,15 +39,15 @@ def recordprofile(csvfile, targettemp) -> bool:
         temp_sensor = TempSensorSimulated()
         oven = SimulatedOven(temp_sensor)
     else:
-        gpio = PiFaceGPIO()
-        temp_sensor_gpio = gpio
+        output_gpio = get_gpio(config.gpio_type)
+        temp_sensor_gpio = PiGPIO()
 
         thermocouple = ThermocoupleCreate(config.THERMOCOUPLE_TYPE, temp_sensor_gpio)
         if not thermocouple:
             return False
 
         temp_sensor = TempSensorReal(thermocouple, config.thermocouple_offset)
-        oven = RealOven(gpio, temp_sensor)
+        oven = RealOven(output_gpio, temp_sensor)
 
     # Main loop:
     #

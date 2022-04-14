@@ -1,11 +1,10 @@
 import logging
 
-from lib.gpio import GPIOBase
 
 log = logging.getLogger(__name__)
 
 
-class PiGPIO(GPIOBase):
+class PiGPIO:
     def __init__(self) -> None:
         try:
             import RPi.GPIO as GPIO
@@ -35,4 +34,6 @@ class PiGPIO(GPIOBase):
         self.GPIO.output(pin, state)
 
     def get_pin(self, pin: int) -> bool:
+        if not self.GPIO:
+            return False
         return self.GPIO.input(pin)

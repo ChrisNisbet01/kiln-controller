@@ -3,7 +3,7 @@ import logging
 ########################################################################
 #
 #   General options
-
+from lib.gpio import GPIOType
 from lib.thermocouple import ThermocoupleType, MAX31856Type
 
 log_level = logging.INFO
@@ -27,9 +27,7 @@ currency_type = "$"   # Currency Symbol to show when calculating cost to run job
 #   can use whichever GPIO you prefer/have available.
 
 ### Outputs
-DIRECT_GPIO: str = "Direct"
-PIFACE_GPIO: str = "PiFace"
-gpio_type: str = PIFACE_GPIO
+gpio_type = GPIOType.Pi
 
 gpio_enable = 0  # Master enable contactor
 gpio_heat = 1  # Switches zero-cross solid-state-relay
@@ -72,7 +70,7 @@ pid_kd = 200  # Derivative
 
 # The simulated oven has separate PID parameters.
 # These settings work well with the simulated oven.
-simulated_pid_kp = 10   # Proportional
+simulated_pid_kp = 10  # Proportional
 simulated_pid_ki = 50  # Integral
 simulated_pid_kd = 50  # Derivative
 
@@ -81,7 +79,7 @@ simulated_pid_kd = 50  # Derivative
 # Initial heating and Integral Windup
 #
 # During initial heating, if the temperature is constantly under the
-# setpoint,large amounts of Integral can accumulate. This accumulation
+# setpoint, large amounts of Integral can accumulate. This accumulation
 # causes the kiln to run above the setpoint for potentially a long
 # period of time. These settings allow integral accumulation only when
 # the temperature is close to the setpoint. This applies only to the integral.

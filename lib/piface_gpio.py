@@ -1,11 +1,10 @@
 import logging
 
-from lib.gpio import GPIOBase
 
 log = logging.getLogger(__name__)
 
 
-class PiFaceGPIO(GPIOBase):
+class PiFaceGPIO:
     def __init__(self) -> None:
         try:
             import pifacedigitalio as piface
@@ -36,4 +35,6 @@ class PiFaceGPIO(GPIOBase):
 
     def get_pin(self, pin: int) -> bool:
         # Assumes that pin refers to an input pin
+        if not self.piface:
+            return False
         return self.piface.digital_read(pin)
