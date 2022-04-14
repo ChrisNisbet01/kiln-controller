@@ -126,7 +126,7 @@ class TempSensorReal(Thread):
         self._unknownError = self.thermocouple.unknownError
 
         is_bad_value = self._noConnection | self._unknownError
-        if config.honour_theromocouple_short_errors:
+        if config.honour_thermocouple_short_errors:
             is_bad_value |= self._shortToGround | self._shortToVCC
 
         if not is_bad_value:

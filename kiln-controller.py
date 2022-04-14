@@ -10,8 +10,7 @@ from lib.ovenWatcher import OvenWatcher
 from lib.rpi_gpio import PiGPIO
 from lib.temp_sensor import TempSensorSimulated, TempSensorReal
 from lib.piface_gpio import PiFaceGPIO
-from lib.max31855 import MAX31855
-from lib.max31856 import MAX31856
+from lib.thermocouple import ThermocoupleCreate
 from web_server import create_web_server
 
 try:
@@ -32,7 +31,7 @@ def create_oven() -> Optional[Oven]:
     if config.simulate:
         log.info("Simulation mode")
         temp_sensor = TempSensorSimulated()
-        oven_ = SimulatedOven(temp_sensor)
+        oven = SimulatedOven(temp_sensor)
     else:
         log.info("Full operation mode")
         gpio_types = {config.PIFACE_GPIO: PiFaceGPIO, config.DIRECT_GPIO: PiGPIO}
@@ -40,32 +39,8 @@ def create_oven() -> Optional[Oven]:
         output_gpio = gpio_type()
         temp_sensor_gpio = PiGPIO()
 
-        if config.max31855:
-            log.info("init MAX31855")
-            thermocouple = MAX31855(
-                temp_sensor_gpio,
-                config.gpio_sensor_cs,
-                config.gpio_sensor_clock,
-                config.gpio_sensor_data,
-                config.temp_scale)
-        elif config.max31856:
-            log.info("init MAX31856")
-            software_spi = \
-                {
-                    'cs': config.gpio_sensor_cs,
-                    'clk': config.gpio_sensor_clock,
-                    'do': config.gpio_sensor_data,
-                    'di': config.gpio_sensor_di
-                }
-            thermocouple = MAX31856(
-                temp_sensor_gpio,
-                tc_type=config.thermocouple_type,
-                software_spi=software_spi,
-                units=config.temp_scale,
-                ac_freq_50hz=config.ac_freq_50hz,
-            )
-        else:
-            print("No thermocouple specified. Select either max31855 or max31856 in config.py")
+        thermocouple = ThermocoupleCreate(config.THERMOCOUPLE_TYPE, temp_sensor_gpio)
+        if not thermocouple:
             return None
 
         # Temp debug use dummy sensor until real hardware arrives.
@@ -74,8 +49,8 @@ def create_oven() -> Optional[Oven]:
         # thermocouple SPI anyway, so should use Pi GPIO for the thermocouple (faster if nothing else).
         # temp_sensor = TempSensorReal(thermocouple, config.thermocouple_offset)
         temp_sensor = TempSensorSimulated()
-        oven_ = RealOven(output_gpio, temp_sensor)
-    return oven_
+        oven = RealOven(output_gpio, temp_sensor)
+    return oven
 
 
 class _OvenCallbacks:
