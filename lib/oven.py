@@ -117,6 +117,7 @@ class Oven(Thread):
         self.daemon = True
         self.time_step = config.sensor_time_wait
         self._timer = OvenTimer(self._timeout)
+        self._start_time = oven_time.now()
         self._reset()
 
     def __enter__(self) -> "Oven":
@@ -137,7 +138,6 @@ class Oven(Thread):
         self._timer.stop()
         self._state = OvenState.IDLE
         self._profile = None
-        self._start_time = oven_time.now()
         self._total_catch_up_secs = 0
         self._runtime_secs = 0
         self._total_time_secs = 0
@@ -272,11 +272,11 @@ class Oven(Thread):
 
     @property
     def _total_runtime_secs(self):
-        if self._state == OvenState.RUNNING:
-            total_runtime = (oven_time.now() - self._start_time).total_seconds()
-        else:
-            total_runtime = 0.0
-        return total_runtime
+        # Actually the total runtime since the start of the program or the start
+        # of the last profile run.
+        # Used when including the actual temperature on the graph plot.
+        total_runtime_secs = (oven_time.now() - self._start_time).total_seconds()
+        return total_runtime_secs
 
     @property
     def _runtime_info(self) -> dict:

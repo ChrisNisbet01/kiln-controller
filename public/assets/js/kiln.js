@@ -592,6 +592,8 @@ $(document).ready(function()
                         state = "???"
                     }
                     $('#state').html('<span>'+ state +'</span>');
+                    graph.actual.data.push([x.total_runtime, x.temperature]);
+                    graph.plot = $.plot("#graph_container", graph_data(), getOptions());
                 }
 
                 $('#act_temp').html(parseInt(x.temperature));
