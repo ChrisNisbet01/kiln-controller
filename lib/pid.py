@@ -2,7 +2,7 @@ import time
 from dataclasses import dataclass
 
 import config
-import lib.oven_time as oven_time
+from lib.oven_time import Time
 from lib.log import log
 
 
@@ -19,7 +19,7 @@ class PID:
         self.ki = params.ki
         self.kp = params.kp
         self.kd = params.kd
-        self.lastNow = oven_time.now()
+        self.lastNow = Time.now()
         self.iterm = 0
         self.last_err = 0
         self.pidstats = {}
@@ -30,7 +30,7 @@ class PID:
     # in a larger PID control window and much more accurate control...
     # instead of what used to be binary on/off control.
     def compute(self, setpoint, ispoint) -> float:
-        now = oven_time.now()
+        now = Time.now()
         time_delta_secs = (now - self.lastNow).total_seconds()
         self.lastNow = now
 

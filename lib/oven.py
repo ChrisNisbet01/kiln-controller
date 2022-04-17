@@ -7,7 +7,7 @@ from threading import Thread
 from typing import Optional, Any, Union
 
 import config
-import lib.oven_time as oven_time
+from lib.oven_time import Time
 from lib.gpio import GPIOBase
 from lib.gpio_output import Output
 from lib.log import log
@@ -91,6 +91,7 @@ class Oven(Thread):
     _load_percent: float = 0
     temp_sensor: TempSensor
     _start_time: datetime.datetime
+    _speed: int = 1
     _are_catching_up: bool = False
     _catchup_start_time: datetime.datetime
     _total_catch_up_secs: float = 0
@@ -117,7 +118,7 @@ class Oven(Thread):
         self.daemon = True
         self.time_step = config.sensor_time_wait
         self._timer = OvenTimer(self._timeout)
-        self._start_time = oven_time.now()
+        self._start_time = Time.now()
         self._reset()
 
     def __enter__(self) -> "Oven":
@@ -170,7 +171,8 @@ class Oven(Thread):
         log.info("Running schedule %s" % profile.name)
         self._profile = profile
         self._total_time_secs = profile.get_duration()
-        self._start_time = oven_time.now()
+        Time.speed_set(self._speed)
+        self._start_time = Time.now()
         self._start_at_secs = start_at_minute * 60
         self._state = OvenState.RUNNING
 
@@ -180,12 +182,12 @@ class Oven(Thread):
     def _catch_up_on(self):
         if not self._are_catching_up:
             self._are_catching_up = True
-            self._catchup_start_time = oven_time.now()
+            self._catchup_start_time = Time.now()
 
     def _catch_up_off(self):
         if self._are_catching_up:
             self._are_catching_up = False
-            catch_up_time = oven_time.now() - self._catchup_start_time
+            catch_up_time = Time.now() - self._catchup_start_time
             self._total_catch_up_secs += catch_up_time.total_seconds()
 
     def kiln_must_catch_up(self) -> None:
@@ -220,7 +222,7 @@ class Oven(Thread):
     def update_runtime(self) -> None:
         if self._are_catching_up:
             return
-        runtime_delta = oven_time.now() - self._start_time
+        runtime_delta = Time.now() - self._start_time
         if runtime_delta.total_seconds() < 0:
             runtime_delta = datetime.timedelta(0)
         self._runtime_secs = self._start_at_secs + runtime_delta.total_seconds() - self._total_catch_up_secs
@@ -275,7 +277,7 @@ class Oven(Thread):
         # Actually the total runtime since the start of the program or the start
         # of the last profile run.
         # Used when including the actual temperature on the graph plot.
-        total_runtime_secs = (oven_time.now() - self._start_time).total_seconds()
+        total_runtime_secs = (Time.now() - self._start_time).total_seconds()
         return total_runtime_secs
 
     @property
@@ -351,12 +353,11 @@ class SimulatedOven(Oven):
     Q_h: float
     p_ho: float
     p_env: float
-    _sim_speed: float
     temp_sensor: TempSensorSimulated
 
     def __init__(self, temp_sensor: TempSensorSimulated) -> None:
-        self._sim_speed = config.sim_speed
-        oven_time.set_speed(self._sim_speed)
+        self._speed = config.sim_speed
+        Time.speed_set(self._speed)
         self.t_env = config.sim_t_env
         self.c_heat = config.sim_c_heat
         self.c_oven = config.sim_c_oven
@@ -383,7 +384,7 @@ class SimulatedOven(Oven):
 
     def _reset(self) -> None:
         super()._reset()
-        self._timer.start(self.time_step / self._sim_speed)
+        self._timer.start(self.time_step / self._speed)
 
     def heating_energy(self, pid) -> None:
         # using pid here simulates the element being on for
@@ -413,7 +414,7 @@ class SimulatedOven(Oven):
         self.heating_energy(0)
         self.temp_changes()
         log.info(f"temp: {self.temp_sensor.temperature:.2f}")
-        self._timer.start(self.time_step / self._sim_speed)
+        self._timer.start(self.time_step / self._speed)
 
     def heat_then_cool(self) -> None:
         pid = self._pid.compute(self._target_temp, self.temp_sensor.temperature)
@@ -453,7 +454,7 @@ class SimulatedOven(Oven):
                  )
         # This is a simulation so there's no need for separate heating/cooling
         # times.
-        self._timer.start(self.time_step / self._sim_speed)
+        self._timer.start(self.time_step / self._speed)
 
 
 class RealOven(Oven):

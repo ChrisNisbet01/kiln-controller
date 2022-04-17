@@ -2,17 +2,20 @@ import time
 from datetime import datetime as dt
 
 
-_speed: float = 1
-_reference_time: float = time.time()
+class Time:
+    _speed: int = 1
+    _reference_time: float = time.time()
 
+    @classmethod
+    def speed_set(cls, speed: int):
+        cls._speed = speed
+        cls._reference_time = time.time()
 
-def set_speed(speed: float):
-    global _speed
-    global _reference_time
+    @classmethod
+    def speed_get(cls):
+        return cls._speed
 
-    _speed = speed
-    _reference_time = time.time()
-
-def now() -> dt:
-    oven_time = _reference_time + _speed * (time.time() - _reference_time)
-    return dt.fromtimestamp(oven_time)
+    @classmethod
+    def now(cls) -> dt:
+        oven_time = cls._reference_time + cls._speed * (time.time() - cls._reference_time)
+        return dt.fromtimestamp(oven_time)
