@@ -102,6 +102,7 @@ class TempSensorReal(Thread):
         self._time_step = config.sensor_time_wait
         self._sleep_secs = self._time_step / float(config.temperature_average_samples)
         self.thermocouple = thermocouple
+        self._timer.start(self._sleep_secs)
         self.start()
 
     @property
