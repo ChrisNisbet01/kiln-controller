@@ -41,14 +41,15 @@ def ThermocoupleCreate(
 ):
     if thermocouple_type == ThermocoupleType.MAX31855:
         from lib.max31855 import MAX31855
+        from lib.max31855_spi_bit_bang import MAX31855SPIBitBang
 
         log.info("init MAX31855")
-        thermocouple = MAX31855(
-            temp_sensor_gpio,
-            config.gpio_sensor_cs,
-            config.gpio_sensor_clock,
-            config.gpio_sensor_data,
-            config.temp_scale)
+        thermocouple_spi = MAX31855SPIBitBang(
+            gpio=temp_sensor_gpio,
+            cs_pin=config.gpio_sensor_cs,
+            clock_pin=config.gpio_sensor_clock,
+            data_pin=config.gpio_sensor_data)
+        thermocouple = MAX31855(spi=thermocouple_spi, units=config.temp_scale)
     elif thermocouple_type == ThermocoupleType.MAX31856:
         from lib.max31856 import MAX31856
 

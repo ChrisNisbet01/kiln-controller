@@ -88,7 +88,7 @@ stop_integral_windup = True
 ########################################################################
 #
 #   Simulation parameters
-simulate       = True
+simulate       = False
 sim_speed      = 10       # The speed the simulator runs at (1 ~= realtime, >1 = faster)
 sim_t_env      = 21.0     # deg C
 sim_c_heat     = 100.0    # J/K  heat capacity of heat element
