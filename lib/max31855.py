@@ -37,7 +37,7 @@ class MAX31855:
         self.gpio.setup_pin(self.data_pin, False)
 
         # Pull chip select high to make chip inactive
-        self.gpio.set_pin(self.cs_pin, False)
+        self.gpio.set_pin(self.cs_pin, True)
 
     def get(self) -> float:
         '''Reads SPI bus and returns current value of thermocouple.'''
@@ -232,10 +232,12 @@ class MAX31855:
 
 
 class MAX31855Error(Exception):
-     def __init__(self, value):
-         self.value = value
-     def __str__(self):
-         return repr(self.value)
+    def __init__(self, value):
+        self.value = value
+
+    def __str__(self):
+        return repr(self.value)
+
 
 if __name__ == "__main__":
 
