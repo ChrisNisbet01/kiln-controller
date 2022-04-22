@@ -6,23 +6,16 @@ import csv
 import time
 import argparse
 
+from lib.config_from_yaml import Config, load_config
 from lib.gpio import get_gpio
 from lib.rpi_gpio import PiGPIO
 from lib.temp_sensor import TempSensorSimulated, TempSensorReal
 from lib.thermocouple import ThermocoupleCreate
 
+cfg: Config
+
 
 def recordprofile(csvfile, targettemp) -> bool:
-
-    try:
-        sys.dont_write_bytecode = True
-        import config
-        sys.dont_write_bytecode = False
-
-    except ImportError:
-        print("Could not import config file.")
-        print("Copy config.py.EXAMPLE to config.py and adapt it for your setup.")
-        return False
 
     script_dir = os.path.dirname(os.path.realpath(__file__))
     sys.path.insert(0, script_dir + '/lib/')
@@ -35,19 +28,22 @@ def recordprofile(csvfile, targettemp) -> bool:
     csvout.writerow(['time', 'temperature'])
 
     # construct the oven
-    if config.simulate:
+    if cfg.simulated:
         temp_sensor = TempSensorSimulated()
-        oven = SimulatedOven(temp_sensor)
+        oven = SimulatedOven(cfg, temp_sensor)
     else:
-        output_gpio = get_gpio(config.gpio_type)
+        output_gpio = get_gpio(cfg.outputs.type)
         temp_sensor_gpio = PiGPIO()
 
-        thermocouple = ThermocoupleCreate(config.THERMOCOUPLE_TYPE, temp_sensor_gpio)
+        thermocouple = ThermocoupleCreate(
+            cfg=cfg.thermocouple,
+            temp_sensor_gpio=temp_sensor_gpio,
+            temp_scale=cfg.temp_scale)
         if not thermocouple:
             return False
 
-        temp_sensor = TempSensorReal(thermocouple, config.thermocouple_offset)
-        oven = RealOven(output_gpio, temp_sensor)
+        temp_sensor = TempSensorReal(cfg, thermocouple, cfg.thermocouple.offset)
+        oven = RealOven(cfg, output_gpio, temp_sensor)
 
     # Main loop:
     #
@@ -59,7 +55,7 @@ def recordprofile(csvfile, targettemp) -> bool:
     # We record the temperature every second
     try:
         stage = 'heating'
-        if not config.simulate:
+        if not cfg.simulated:
             oven.output.set(True)
 
         while True:
@@ -70,7 +66,7 @@ def recordprofile(csvfile, targettemp) -> bool:
 
             if stage == 'heating':
                 if temp >= targettemp:
-                    if not config.simulate:
+                    if not cfg.simulated:
                         oven.output.set(False)
                     stage = 'cooling'
 
@@ -85,7 +81,7 @@ def recordprofile(csvfile, targettemp) -> bool:
 
     finally:
         # ensure we always shut the oven down!
-        if not config.simulate:
+        if not cfg.simulated:
             oven.output.set(False)
     return True
 
@@ -189,8 +185,9 @@ def calculate(filename, tangentdivisor, showplot):
              lower_crossing_x, upper_crossing_x)
 
 
-if __name__ == "__main__":
+def main():
     parser = argparse.ArgumentParser(description='Kiln tuner')
+    parser.add_argument("--config-file", nargs="?", dest="config_file", required=True, help="config file (yaml format)")
     subparsers = parser.add_subparsers()
     parser.set_defaults(mode='')
 
@@ -222,6 +219,8 @@ if __name__ == "__main__":
     parser_zn.set_defaults(mode='zn')
 
     args = parser.parse_args()
+    global cfg
+    cfg = load_config(args.config_file)
 
     if args.mode == 'recordprofile':
         if not recordprofile(args.csvfile, args.targettemp):
@@ -239,3 +238,10 @@ if __name__ == "__main__":
 
     else:
         raise NotImplementedError("Unknown mode %s" % args.mode)
+
+
+if __name__ == "__main__":
+    try:
+        main()
+    finally:
+        pass

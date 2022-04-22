@@ -21,6 +21,6 @@ class GPIOType(Enum):
     PiFace = auto()
 
 
-def get_gpio(gpio_type: GPIOType) -> GPIOBase:
-    gpio_types = {GPIOType.PiFace: PiFaceGPIO, GPIOType.Pi: PiGPIO}
+def get_gpio(gpio_type: str) -> GPIOBase:
+    gpio_types = {"piface": PiFaceGPIO, "pi": PiGPIO}
     return gpio_types[gpio_type]()

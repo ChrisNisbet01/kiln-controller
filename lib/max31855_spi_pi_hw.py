@@ -1,5 +1,6 @@
 import spidev
 
+
 class MAX31855SPIPiHW:
 
     def __init__(self, bus: int, device: int) -> None:
@@ -18,7 +19,7 @@ class MAX31855SPIPiHW:
 
         # read 4 bytes as the size of a message is 32bits
         data = bytes(self.spi.readbytes(4))
-        data = int.from_bytes(data, "big", signed=False)
+        data = int.from_bytes(data, "big", signed=True)
         return data
 
     def close(self) -> None:

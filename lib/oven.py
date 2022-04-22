@@ -1,19 +1,21 @@
 import datetime
 import json
+import logging
 from dataclasses import dataclass
 from enum import Enum, auto
 from queue import Queue
 from threading import Thread
 from typing import Optional, Any, Union
-
-import config
+from lib.config_from_yaml import Config
 from lib.oven_time import Time
 from lib.gpio import GPIOBase
 from lib.gpio_output import Output
-from lib.log import log
-from lib.pid import PID, PIDParams
+from lib.pid import PID
 from lib.temp_sensor import TempSensor, TempSensorSimulated
 from lib.timer import OvenTimer
+
+
+log: logging.Logger = logging.getLogger("Oven")
 
 
 class Profile:
@@ -104,19 +106,19 @@ class Oven(Thread):
     _pid: PID
     _queue: Queue
     _timer: OvenTimer
-    _pid_params: PIDParams
+    _cfg: Config
 
     def __init__(
             self,
-            pid_params: PIDParams,
+            cfg: Config,
             temp_sensor: Union[TempSensor, TempSensorSimulated]) -> None:
         super().__init__()
-        self._pid_params = pid_params
+        self._cfg = cfg
         self._queue = Queue()
         self._start_at_secs = 0
         self.temp_sensor = temp_sensor
         self.daemon = True
-        self.time_step = config.sensor_time_wait
+        self.time_step = self._cfg.sensor_time_wait
         self._timer = OvenTimer(self._timeout)
         self._start_time = Time.now()
         self._reset()
@@ -145,7 +147,7 @@ class Oven(Thread):
         self._target_temp = 0
         self._heat = 0
         self._load_percent = 0
-        self._pid = PID(self._pid_params)
+        self._pid = PID(self._cfg.pid)
         self._are_catching_up = False
 
     def run_profile(self, profile: Profile, start_at_minute: float = 0) -> None:
@@ -199,19 +201,19 @@ class Oven(Thread):
 
         :return: True if the kiln is catching up, else False.
         """
-        if not config.kiln_must_catch_up:
+        if not self._cfg.kiln_must_catch_up:
             self._catch_up_off()
             return
 
         temperature = self.temp_sensor.temperature
 
-        is_too_cold = self._target_temp - temperature > config.kiln_must_catch_up_max_error
+        is_too_cold = self._target_temp - temperature > self._cfg.kiln_must_catch_up_max_error
         if is_too_cold:
             log.info("too cold - kiln must catch up")
             self._catch_up_on()
             return
 
-        is_too_hot = temperature - self._target_temp > config.kiln_must_catch_up_max_error
+        is_too_hot = temperature - self._target_temp > self._cfg.kiln_must_catch_up_max_error
         if is_too_hot:
             log.info("too hot - kiln must catch up")
             self._catch_up_on()
@@ -234,7 +236,7 @@ class Oven(Thread):
         """reset if the temperature is way TOO HOT, or other critical errors detected"""
         should_reset = False
         temp_sensor_status = self.temp_sensor.status
-        if temp_sensor_status.temperature >= config.emergency_shutoff_temp:
+        if temp_sensor_status.temperature >= self._cfg.emergency_shutoff_temp:
             log.info("emergency!!! temperature too high.")
             should_reset = True
 
@@ -250,7 +252,7 @@ class Oven(Thread):
             log.info("emergency!!! too many errors in a short period.")
             should_reset = True
 
-        if should_reset and not config.ignore_emergencies:
+        if should_reset and not self._cfg.ignore_emergencies:
             log.info("Shutting down")
             self._reset()
 
@@ -298,8 +300,8 @@ class Oven(Thread):
             'heat': self._heat,
             'load_percent': self._load_percent,
             'totaltime': self._total_time_secs,
-            'kwh_rate': config.kwh_rate,
-            'currency_type': config.currency_type,
+            'kwh_rate': self._cfg.kwh_rate,
+            'currency_type': self._cfg.currency_type,
             'profile': self._profile.name if self._profile else None,
             'pidstats': self._pid.pidstats,
         }
@@ -355,28 +357,23 @@ class SimulatedOven(Oven):
     p_env: float
     temp_sensor: TempSensorSimulated
 
-    def __init__(self, temp_sensor: TempSensorSimulated) -> None:
-        self._speed = config.sim_speed
+    def __init__(self, cfg: Config, temp_sensor: TempSensorSimulated) -> None:
+        sim_cfg = cfg.simulate
+        self._speed = sim_cfg.speed
         Time.speed_set(self._speed)
-        self.t_env = config.sim_t_env
-        self.c_heat = config.sim_c_heat
-        self.c_oven = config.sim_c_oven
-        self.p_heat = config.sim_p_heat
-        self.R_o_nocool = config.sim_R_o_nocool
-        self.R_ho_noair = config.sim_R_ho_noair
+        self.t_env = sim_cfg.t_env
+        self.c_heat = sim_cfg.c_heat
+        self.c_oven = sim_cfg.c_oven
+        self.p_heat = sim_cfg.p_heat
+        self.R_o_nocool = sim_cfg.R_o_nocool
+        self.R_ho_noair = sim_cfg.R_ho_noair
         self.R_ho = self.R_ho_noair
 
         # set temps to the temp of the surrounding environment
         self.t = self.t_env  # deg C temp of oven
         self.t_h = self.t_env  # deg C temp of heating element
 
-        super().__init__(
-            PIDParams(
-                kp=config.simulated_pid_kp,
-                ki=config.simulated_pid_ki,
-                kd=config.simulated_pid_kd),
-            temp_sensor
-        )
+        super().__init__(cfg, temp_sensor)
 
     def __enter__(self) -> Oven:
         log.info("SimulatedOven started")
@@ -462,14 +459,11 @@ class RealOven(Oven):
     _master_output: Output
     _heat_on_secs: float = 0
 
-    def __init__(self, gpio: GPIOBase, temp_sensor: TempSensor) -> None:
-        self._master_output = Output(gpio, config.gpio_enable)
+    def __init__(self, cfg: Config, gpio: GPIOBase, temp_sensor: TempSensor) -> None:
+        self._master_output = Output(gpio, cfg.outputs.enable)
         self._master_output_set(False)
-        self.output = Output(gpio, config.gpio_heat)
-        super().__init__(
-            PIDParams(kp=config.pid_kp, ki=config.pid_ki, kd=config.pid_kd),
-            temp_sensor
-        )
+        self.output = Output(gpio, cfg.outputs.heat)
+        super().__init__(cfg, temp_sensor)
 
     def _master_output_set(self, turn_on: bool) -> None:
         log_it = self._master_output.state is None or turn_on != self._master_output.state

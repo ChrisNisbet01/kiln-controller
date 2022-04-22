@@ -1,24 +1,21 @@
+import logging
 import time
-from dataclasses import dataclass
 
-import config
+from lib.config_from_yaml import ConfigPID
 from lib.oven_time import Time
-from lib.log import log
 
 
-@dataclass(frozen=True)
-class PIDParams:
-    kp: int = 1
-    ki: int = 1
-    kd: int = 1
+log = logging.getLogger("PID")
 
 
 class PID:
+    cfg: ConfigPID
 
-    def __init__(self, params: PIDParams) -> None:
-        self.ki = params.ki
-        self.kp = params.kp
-        self.kd = params.kd
+    def __init__(self, cfg: ConfigPID) -> None:
+        self.cfg = cfg
+        self.ki = cfg.ki
+        self.kp = cfg.kp
+        self.kd = cfg.kd
         self.lastNow = Time.now()
         self.iterm = 0
         self.last_err = 0
@@ -39,7 +36,7 @@ class PID:
         error = float(setpoint - ispoint)
 
         if self.ki > 0:
-            if config.stop_integral_windup:
+            if self.cfg.stop_integral_windup:
                 if abs(self.kp * error) < window_size:
                     self.iterm += (error * time_delta_secs * (1 / self.ki))
             else:

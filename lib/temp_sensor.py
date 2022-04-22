@@ -1,14 +1,16 @@
+import logging
 import time
 from dataclasses import dataclass
 from enum import Enum, auto
 from queue import Queue
 from threading import Thread
 from typing import Optional, Any, Protocol
-
-import config
-from lib.log import log
+from lib.config_from_yaml import Config
 from lib.thermocouple import Thermocouple
 from lib.timer import OvenTimer
+
+
+log = logging.getLogger("temp_sensor")
 
 
 class TempSensorMessageCode(Enum):
@@ -92,15 +94,17 @@ class TempSensorReal(Thread):
     _queue: Queue
     _timer: OvenTimer
     _thermocouple_offset: float
+    _cfg: Config
 
-    def __init__(self, thermocouple: Thermocouple, thermocouple_offset: float = 0) -> None:
+    def __init__(self, cfg: Config, thermocouple: Thermocouple, thermocouple_offset: float = 0) -> None:
         super().__init__()
+        self._cfg = cfg
         self._thermocouple_offset = thermocouple_offset
         self._queue = Queue()
         self._timer = OvenTimer(self._timeout)
         self.daemon = True
-        self._time_step = config.sensor_time_wait
-        self._sleep_secs = self._time_step / float(config.temperature_average_samples)
+        self._time_step = self._cfg.sensor_time_wait
+        self._sleep_secs = self._time_step / float(self._cfg.thermocouple.temperature_average_samples)
         self.thermocouple = thermocouple
         self._timer.start(self._sleep_secs)
         self.start()
@@ -127,12 +131,12 @@ class TempSensorReal(Thread):
         self._unknownError = self.thermocouple.unknownError
 
         is_bad_value = self._noConnection | self._unknownError
-        if config.honour_thermocouple_short_errors:
+        if self._cfg.thermocouple.honour_short_errors:
             is_bad_value |= self._shortToGround | self._shortToVCC
 
         if not is_bad_value:
             temps.append(temp)
-            if len(temps) > config.temperature_average_samples:
+            if len(temps) > self._cfg.thermocouple.temperature_average_samples:
                 del temps[0]
             self._ok_count += 1
 

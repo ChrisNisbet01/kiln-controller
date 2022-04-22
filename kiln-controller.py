@@ -1,6 +1,7 @@
 #!/usr/bin/env python
-import sys
+import argparse
 import logging
+from lib.config_from_yaml import Config, load_config
 from typing import Optional, Any
 
 from geventwebsocket.websocket import WebSocket
@@ -13,31 +14,25 @@ from lib.temp_sensor import TempSensorSimulated, TempSensorReal
 from lib.thermocouple import ThermocoupleCreate
 from web_server import create_web_server
 
-try:
-    sys.dont_write_bytecode = True
-    import config
-    sys.dont_write_bytecode = False
-except ModuleNotFoundError:
-    print("Could not import config file.")
-    print("Copy config.py.EXAMPLE to config.py and adapt it for your setup.")
-    exit(1)
 
-logging.basicConfig(level=config.log_level, format=config.log_format)
-log = logging.getLogger("kiln-controller")
-log.info("Starting kiln controller")
+cfg: Config
+log: logging.Logger
 
 
 def create_oven() -> Optional[Oven]:
-    if config.simulate:
+    if cfg.simulated:
         log.info("Simulation mode")
         temp_sensor = TempSensorSimulated()
-        oven = SimulatedOven(temp_sensor)
+        oven = SimulatedOven(cfg, temp_sensor)
     else:
         log.info("Full operation mode")
-        output_gpio = get_gpio(config.gpio_type)
+        output_gpio = get_gpio(cfg.outputs.type)
         temp_sensor_gpio = PiGPIO()
 
-        thermocouple = ThermocoupleCreate(config.THERMOCOUPLE_TYPE, temp_sensor_gpio)
+        thermocouple = ThermocoupleCreate(
+            cfg=cfg.thermocouple,
+            temp_sensor_gpio=temp_sensor_gpio,
+            temp_scale=cfg.temp_scale)
         if not thermocouple:
             return None
 
@@ -45,9 +40,9 @@ def create_oven() -> Optional[Oven]:
         # Note that temp sensor and heater outputs accessing the PiFace module on different threads
         # doesn't work - would need a lock. Doesn't really make sense to use PiFace GPIO to bitbang
         # thermocouple SPI anyway, so should use Pi GPIO for the thermocouple (faster if nothing else).
-        temp_sensor = TempSensorReal(thermocouple, config.thermocouple_offset)
+        temp_sensor = TempSensorReal(cfg, thermocouple, cfg.thermocouple.offset)
         # temp_sensor = TempSensorSimulated()
-        oven = RealOven(output_gpio, temp_sensor)
+        oven = RealOven(cfg, output_gpio, temp_sensor)
     return oven
 
 
@@ -57,7 +52,7 @@ class _OvenCallbacks:
 
     def __init__(self, oven_: Oven) -> None:
         self._oven = oven_
-        self._oven_watcher = OvenWatcher(self._oven, config.sensor_time_wait)
+        self._oven_watcher = OvenWatcher(self._oven, cfg.sensor_time_wait)
 
     def run_profile(self, profile: Any, start_at_minute: float = 0) -> None:
         profile = Profile.from_json(profile)
@@ -71,10 +66,37 @@ class _OvenCallbacks:
         self._oven_watcher.add_observer(wsock)
 
 
+def parse_command_line() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description="Kiln Controller",
+                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument("--config-file", nargs="?", dest="config_file", required=True, help="config file (yaml format)")
+    return parser.parse_args()
+
+
+def setup_logger():
+    levels = {
+        "info": logging.INFO,
+        "error": logging.ERROR,
+        "debug": logging.DEBUG
+    }
+    if cfg.log_level not in levels:
+        raise ValueError(f"Unsupported logging level: '{cfg.log_level}'. Legal values are: {list(levels.keys())}")
+    logging.basicConfig(level=levels[cfg.log_level], format=cfg.log_format)
+
+
 def main() -> None:
+    global cfg
+    global log
+
+    args = parse_command_line()
+    cfg = load_config(args.config_file)
+    setup_logger()
+    log = logging.getLogger("kiln-controller")
+    log.info("Starting kiln controller")
+
     with create_oven() as oven:
         callbacks = _OvenCallbacks(oven)
-        web_server = create_web_server(config.listening_ip, config.listening_port, log, callbacks)
+        web_server = create_web_server(cfg, callbacks)
         web_server.serve_forever()
 
 

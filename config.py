@@ -3,8 +3,6 @@ import logging
 ########################################################################
 #
 #   General options
-from lib.gpio import GPIOType
-from lib.thermocouple import ThermocoupleType, MAX31856Type
 
 log_level = logging.INFO
 log_format = '%(asctime)s %(levelname)s %(name)s: %(message)s'
@@ -27,14 +25,16 @@ currency_type = "$"   # Currency Symbol to show when calculating cost to run job
 #   can use whichever GPIO you prefer/have available.
 
 ### Outputs
-gpio_type = GPIOType.Pi
+# gpio_type: Possible values are:
+# "pi": regular Raspberry Pi GPIO
+# "piface": "Piface GPIO hat"
+gpio_type = "pi"
 
 gpio_enable = 0  # Master enable contactor
 gpio_heat = 1  # Switches zero-cross solid-state-relay
 
 ### Thermocouple Adapter selection:
-THERMOCOUPLE_TYPE: ThermocoupleType = ThermocoupleType.MAX31855
-MAX31856_TYPE: MAX31856Type = MAX31856Type.MAX31856_S_TYPE
+MAX31856Type = "MAX31856Type.MAX31856_S_TYPE"
 
 ### Thermocouple Connection (using bitbang interfaces)
 #gpio_sensor_cs = 2
@@ -88,7 +88,7 @@ stop_integral_windup = True
 ########################################################################
 #
 #   Simulation parameters
-simulate       = False
+simulate       = True
 sim_speed      = 10       # The speed the simulator runs at (1 ~= realtime, >1 = faster)
 sim_t_env      = 21.0     # deg C
 sim_c_heat     = 100.0    # J/K  heat capacity of heat element
@@ -143,9 +143,6 @@ honour_thermocouple_short_errors = False
 # honour_thermocouple_short_errors to False,
 # you will likely need to increase this (eg I use 40)
 temperature_average_samples = 40
-
-# Thermocouple AC frequency filtering - set to True if in a 50Hz locale, else leave at False for 60Hz locale
-ac_freq_50hz = False
 
 # There are all kinds of emergencies that can happen including:
 # - temperature is too high (emergency_shutoff_temp exceeded)

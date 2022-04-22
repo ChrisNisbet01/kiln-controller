@@ -1,22 +1,21 @@
+import logging
 from typing import Any, Optional, Protocol
 
 from geventwebsocket.websocket import WebSocket
 
-import config
 import json
 import os
 import sys
 from json import JSONDecodeError
-from logging import Logger
 
 import bottle
 from gevent.pywsgi import WSGIServer
 from geventwebsocket import WebSocketError
 from geventwebsocket.handler import WebSocketHandler
+from lib.config_from_yaml import Config
 
-
-log: Logger
-
+cfg: Config
+log = logging.getLogger("web server")
 script_dir = os.path.dirname(os.path.realpath(__file__))
 profile_path = os.path.join(script_dir, "storage", "profiles")
 
@@ -248,21 +247,19 @@ def delete_profile(profile) -> bool:
 def get_config() -> str:
     return json.dumps(
         {
-            "temp_scale": config.temp_scale,
-            "time_scale_slope": config.time_scale_slope,
-            "time_scale_profile": config.time_scale_profile,
-            "kwh_rate": config.kwh_rate,
-            "currency_type": config.currency_type
+            "temp_scale": cfg.temp_scale,
+            "time_scale_slope": cfg.time_scale_slope,
+            "time_scale_profile": cfg.time_scale_profile,
+            "kwh_rate": cfg.kwh_rate,
+            "currency_type": cfg.currency_type
          }
     )
 
 
-def create_web_server(
-        ip: str, port: int, log_: Logger, callbacks: WebCallbacks
-) -> KilnServer:
-    global log
+def create_web_server(cfg_: Config, callbacks: WebCallbacks) -> KilnServer:
+    global cfg
 
-    log = log_
-    log.info("listening on %s:%d" % (ip, port))
-    kiln_server = _KilnServer(ip, port, callbacks)
+    cfg = cfg_
+    log.info("listening on %s:%d" % (cfg.listening_ip, cfg.listening_port))
+    kiln_server = _KilnServer(cfg.listening_ip, cfg.listening_port, callbacks)
     return kiln_server
