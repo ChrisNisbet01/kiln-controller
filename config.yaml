@@ -37,8 +37,8 @@ outputs: !Outputs
   # "pi": regular Raspberry Pi GPIO
   # "piface": "Piface GPIO hat"
   type: pi
-  enable: 0 # Master enable contactor
-  heat: 1   # Switches zero-cross solid-state-relay
+  enable: 24 # Master enable contactor
+  heat: 23   # Switches zero-cross solid-state-relay
 
 thermocouple: !Thermocouple
   ### Thermocouple Adapter selection:
