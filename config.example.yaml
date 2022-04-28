@@ -39,6 +39,7 @@ outputs: !Outputs
   type: pi
   enable: 24 # Master enable contactor
   heat: 23   # Switches zero-cross solid-state-relay
+  active_low: false # Assume both pins operate the same way.
 
 thermocouple: !Thermocouple
   ### Thermocouple Adapter selection:

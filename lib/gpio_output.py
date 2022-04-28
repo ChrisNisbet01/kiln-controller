@@ -2,9 +2,9 @@
 Output module.
 Defines the Output class used by the oven to drive the heating element outputs.
 """
-import time
 from typing import Optional
 from lib.gpio import GPIOBase
+from lib.gpio_base import GPIOConfig
 
 
 class Output:
@@ -15,10 +15,10 @@ class Output:
     _pin: int
     state: Optional[bool] = None
 
-    def __init__(self, gpio: GPIOBase, pin: int) -> None:
+    def __init__(self, gpio: GPIOBase, pin: int, active_low: bool = False) -> None:
         self._gpio = gpio
         self._pin = pin
-        self._gpio.setup_pin(self._pin, True)
+        self._gpio.setup_pin(GPIOConfig(pin=self._pin, output=True, active_low=active_low))
 
     def set(self, turn_on: bool) -> None:
         """

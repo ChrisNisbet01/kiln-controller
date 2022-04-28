@@ -31,6 +31,7 @@ class ConfigOutputs:
     enable: int
     heat: int
     type: str = "pi"
+    active_low: bool = False
 
 
 @dataclass(frozen=True)

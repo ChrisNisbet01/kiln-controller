@@ -460,9 +460,9 @@ class RealOven(Oven):
     _heat_on_secs: float = 0
 
     def __init__(self, cfg: Config, gpio: GPIOBase, temp_sensor: TempSensor) -> None:
-        self._master_output = Output(gpio, cfg.outputs.enable)
+        self._master_output = Output(gpio, cfg.outputs.enable, cfg.outputs.active_low)
         self._master_output_set(False)
-        self.output = Output(gpio, cfg.outputs.heat)
+        self.output = Output(gpio, cfg.outputs.heat, cfg.outputs.active_low)
         super().__init__(cfg, temp_sensor)
 
     def _master_output_set(self, turn_on: bool) -> None:
