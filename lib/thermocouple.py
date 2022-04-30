@@ -40,6 +40,10 @@ def ThermocoupleCreate(
         from lib.max31855 import MAX31855
 
         log.info(f"init MAX31855 - SPI type: {cfg.spi_type}")
+        valid_spi_types = ["BITBANG_SPI", "PI_HW_SPI"]
+        if cfg.spi_type not in valid_spi_types:
+            raise ValueError(f"Unknown Thermcouple SPI type: {cfg.spi_type}. "
+                             f"Supported values are: {valid_spi_types}")
         if cfg.spi_type == "PI_HW_SPI":
             from lib.max31855_spi_pi_hw import MAX31855SPIPiHW
 
@@ -52,9 +56,6 @@ def ThermocoupleCreate(
                 cs_pin=cfg.gpio.sensor_cs,
                 clock_pin=cfg.gpio.sensor_clock,
                 data_pin=cfg.gpio.sensor_data)
-        else:
-            raise ValueError(f"Unknown Thermcouple SPI type: {cfg.spi_type}. "
-                             f"Supported values are: BITBANG_SPI, PI_HW_SPI")
         thermocouple = MAX31855(spi=thermocouple_spi, units=temp_scale)
     elif cfg.type == "MAX31856":
         from lib.max31856 import MAX31856
