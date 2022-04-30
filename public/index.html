@@ -25,31 +25,73 @@
 <body>
 
  <div class="container">
-  <div id="status">
-   <div class="ds-title-panel">
-    <div class="ds-title">Sensor Temp</div>
-    <div class="ds-title">Oven Load</div>
-    <div class="ds-title">Target Temp</div>
-    <div class="ds-title ds-run-state">State</div>
-    <div class="ds-title ds-state pull-right" style="border-left: 1px solid #ccc;">Status</div>
-   </div>
-   <div class="clearfix"></div>
-   <div class="ds-panel">
-    <div class="display ds-num"><span id="act_temp">25</span><span class="ds-unit" id="act_temp_scale" >&deg;C</span></div>
-    <div class="display ds-num"><span id="oven_load">0</span><span class="ds-unit" >%</span></div>
-    <div class="display ds-num ds-target"><span id="target_temp">---</span><span class="ds-unit" id="target_temp_scale">&deg;C</span></div>
-    <div class="display ds-num ds-run-state ds-text" id="state"></div>
-    <div class="display pull-right ds-state" style="padding-right:0"><span class="ds-led" id="heat">&#92;</span><span class="ds-led" id="cool">&#108;</span><span class="ds-led" id="air">&#91;</span><span class="ds-led" id="hazard">&#73;</span><span class="ds-led" id="door">&#9832;</span></div>
-   </div>
-   <div class="clearfix"></div>
+   <div class="status-container">
+     <div class="status-table">
+       <div class="column">
+        <div class="heading"><div>Sensor Temp</div></div>
+        <div class="contents"><div><span class="lcd" id="act_temp"></span><span class="unit" id="act_temp_scale" >&deg;C</span></div></div>
+       </div>
+       <div class="column">
+        <div class="heading"><div>Target Temp</div></div>
+        <div class="contents status-target"><div><span class="lcd" id="target_temp">---</span><span class="unit" id="target_temp_scale">&deg;C</span></div></div>
+       </div>
+       <div class="column">
+        <div class="heading"><div>Oven Load</div></div>
+        <div class="contents"><div><span class="lcd" id="oven_load"></span><span class="unit">%</span></div></div>
+       </div>
+       <div class="column">
+        <div class="heading"><div>State</div></div>
+        <div class="contents"><div id="state"></div></div>
+       </div>
+       <div class="column">
+        <div class="heading"><div>Heat</div></div>
+        <div class="contents led"><span class="status-led" id="heat">&#92;</span></div>
+       </div>
+       <div class="column">
+        <div class="heading"><div>Over Temp</div></div>
+        <div class="contents"><span class="status-led" id="hazard">&#73;</span></div>
+       </div>
+     </div>
+
+     <div class="status-table time-table">
+       <div class="column">
+        <div class="heading"><div>Elapsed Time</div></div>
+        <div class="contents"><div><span id="elapsed_time"></span></div></div>
+       </div>
+       <div class="column">
+        <div class="heading"><div>Slippage</div></div>
+        <div class="contents"><div><span id="slippage" class="slippage"></span></div></div>
+       </div>
+       <div class="column">
+        <div class="heading"><div>&nbsp;</div></div>
+        <div class="contents"><div>&nbsp;</div></div>
+       </div>
+     </div>
+
+     <div class="status-table config-table">
+       <div class="column">
+        <div class="heading">
+         <div><span>Display Actual Temp</span>
+          <span class="slippage-input"><input type="checkbox" id="display_actual"></span>
+         </div>
+        </div>
+       </div>
+       <div class="column">
+        <div class="heading"><div>&nbsp;</div></div>
+       </div>
+     </div>
+
    <div>
     <div class="progress progress-striped active">
-     <div id="progressBar" class="progress-bar"  role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width: 0%">
+     <div id="progressBar" class="progress-bar" role="progressbar" aria-valuenow="0" aria-valuemin="0" aria-valuemax="100" style="width: 0%">
       <span class="sr-only"></span>
      </div>
     </div>
    </div>
+
   </div>
+ </div>
+ <div class="container">
   <div class="panel panel-default">
    <div class="panel-heading">
     <div id="profile_selector" class="pull-left">

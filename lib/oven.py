@@ -271,7 +271,7 @@ class Oven(Thread):
         return state
 
     @property
-    def _total_runtime(self):
+    def _total_runtime_secs(self):
         if self._state == OvenState.RUNNING:
             total_runtime = (oven_time.now() - self._start_time).total_seconds()
         else:
@@ -288,7 +288,8 @@ class Oven(Thread):
 
         state = {
             'runtime': self._runtime_secs,
-            'total_runtime': self._total_runtime,
+            'total_runtime': self._total_runtime_secs,
+            'start_time': self._start_time.timestamp(),
             'temperature': self.temp_sensor.temperature,
             'target': self._target_temp,
             'state': self._state.name.capitalize(),
@@ -438,13 +439,14 @@ class SimulatedOven(Oven):
 
         time_left = self._total_time_secs - self._runtime_secs
         log.info("temp=%.2f, target=%.2f, pid=%.3f, heat_on=%.2f, "
-                 "heat_off=%.2f, run_time=%d, total_time=%d, time_left=%d"
+                 "heat_off=%.2f, run_time=%d, total_runtime=%d, total_time=%d, time_left=%d"
                  % (self.temp_sensor.temperature,
                     self._target_temp,
                     pid,
                     heat_on_secs,
                     heat_off_secs,
                     self._runtime_secs,
+                    self._total_runtime_secs,
                     self._total_time_secs,
                     time_left
                     )
@@ -516,13 +518,14 @@ class RealOven(Oven):
 
             time_left = self._total_time_secs - self._runtime_secs
             log.info("temp=%.2f, target=%.2f, pid=%.3f, heat_on_secs=%.2f, "
-                     "heat_off_secs=%.2f, run_time=%d, total_time=%d, time_left=%d" %
+                     "heat_off_secs=%.2f, run_time=%d, total_runtime=%d, total_time=%d, time_left=%d" %
                      (self.temp_sensor.temperature,
                       self._target_temp,
                       pid,
                       heat_on_secs,
                       self.time_step - heat_on_secs,
                       self._runtime_secs,
+                      self._total_runtime_secs,
                       self._total_time_secs,
                       time_left
                       )
