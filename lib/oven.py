@@ -184,11 +184,13 @@ class Oven(Thread):
     def _catch_up_on(self):
         if not self._are_catching_up:
             self._are_catching_up = True
+            self._pid.disable_integral()
             self._catchup_start_time = Time.now()
 
     def _catch_up_off(self):
         if self._are_catching_up:
             self._are_catching_up = False
+            self._pid.enable_integral()
             catch_up_time = Time.now() - self._catchup_start_time
             self._total_catch_up_secs += catch_up_time.total_seconds()
 

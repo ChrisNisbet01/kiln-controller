@@ -10,6 +10,7 @@ log = logging.getLogger("PID")
 
 class PID:
     cfg: ConfigPID
+    integral_enabled: bool = True
 
     def __init__(self, cfg: ConfigPID) -> None:
         self.cfg = cfg
@@ -20,6 +21,12 @@ class PID:
         self.iterm = 0
         self.last_err = 0
         self.pidstats = {}
+
+    def enable_integral(self):
+        self.integral_enabled = True
+
+    def disable_integral(self):
+        self.integral_enabled = False
 
     # FIX - this was using a really small window where the PID control
     # takes effect from -1 to 1. I changed this to various numbers and
@@ -35,7 +42,9 @@ class PID:
 
         error = float(setpoint - ispoint)
 
-        if self.ki > 0:
+        if not self.integral_enabled:
+            self.iterm = 0.0
+        elif self.ki > 0:
             if self.cfg.stop_integral_windup:
                 if abs(self.kp * error) < window_size:
                     self.iterm += (error * time_delta_secs * (1 / self.ki))
@@ -70,14 +79,13 @@ class PID:
             'out': output,
         }
 
-        if out4logs > 0:
-            log.info("pid actuals pid=%0.2f p=%0.2f i=%0.2f d=%0.2f" %
-                     (
-                         out4logs,
-                         self.kp * error,
-                         self.iterm,
-                         self.kd * d_err
-                     )
-                     )
+        log.info("pid actuals pid=%0.2f p=%0.2f i=%0.2f d=%0.2f" %
+                 (
+                     out4logs,
+                     self.kp * error,
+                     self.iterm,
+                     self.kd * d_err
+                 )
+                 )
 
         return output
