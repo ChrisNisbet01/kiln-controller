@@ -170,7 +170,7 @@ class Oven(Thread):
             log.info("Refusing to start profile - thermocouple unknown error")
             return
 
-        log.info("Running schedule %s" % profile.name)
+        log.info(f"Running schedule {profile.name} starting at {start_at_minute} minutes")
         self._profile = profile
         self._total_time_secs = profile.get_duration()
         Time.speed_set(self._speed)
@@ -184,13 +184,13 @@ class Oven(Thread):
     def _catch_up_on(self):
         if not self._are_catching_up:
             self._are_catching_up = True
-            self._pid.disable_integral()
+            self._pid.disable_pid_control()
             self._catchup_start_time = Time.now()
 
     def _catch_up_off(self):
         if self._are_catching_up:
             self._are_catching_up = False
-            self._pid.enable_integral()
+            self._pid.enable_pid_control()
             catch_up_time = Time.now() - self._catchup_start_time
             self._total_catch_up_secs += catch_up_time.total_seconds()
 
@@ -209,13 +209,13 @@ class Oven(Thread):
 
         temperature = self.temp_sensor.temperature
 
-        is_too_cold = self._target_temp - temperature > self._cfg.kiln_must_catch_up_max_error
+        is_too_cold = self._target_temp - temperature > self._cfg.pid_control_window
         if is_too_cold:
             log.info("too cold - kiln must catch up")
             self._catch_up_on()
             return
 
-        is_too_hot = temperature - self._target_temp > self._cfg.kiln_must_catch_up_max_error
+        is_too_hot = temperature - self._target_temp > self._cfg.pid_control_window
         if is_too_hot:
             log.info("too hot - kiln must catch up")
             self._catch_up_on()

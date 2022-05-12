@@ -10,7 +10,6 @@ class ConfigPID:
     kp: float
     ki: float
     kd: float
-    stop_integral_windup: bool = True
 
 
 @dataclass(frozen=True)
@@ -61,8 +60,6 @@ class Config:
     currency_type: str
     sensor_time_wait: int
     emergency_shutoff_temp: int
-    kiln_must_catch_up: bool
-    kiln_must_catch_up_max_error: int
     pid: ConfigPID
     outputs: ConfigOutputs
     thermocouple: ConfigThermocouple
@@ -75,7 +72,8 @@ class Config:
     time_scale_slope: str = "h"
     time_scale_profile: str = "m"
     ignore_emergencies: bool = False
-
+    kiln_must_catch_up: bool = True
+    pid_control_window: float = 10.0
 
 def config_constructor(
         loader: yaml.SafeLoader,

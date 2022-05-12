@@ -10,7 +10,7 @@ log = logging.getLogger("PID")
 
 class PID:
     cfg: ConfigPID
-    integral_enabled: bool = True
+    _control_enabled: bool = True
 
     def __init__(self, cfg: ConfigPID) -> None:
         self.cfg = cfg
@@ -22,11 +22,11 @@ class PID:
         self.last_err = 0
         self.pidstats = {}
 
-    def enable_integral(self):
-        self.integral_enabled = True
+    def enable_pid_control(self):
+        self._control_enabled = True
 
-    def disable_integral(self):
-        self.integral_enabled = False
+    def disable_pid_control(self):
+        self._control_enabled = False
 
     # FIX - this was using a really small window where the PID control
     # takes effect from -1 to 1. I changed this to various numbers and
@@ -42,24 +42,35 @@ class PID:
 
         error = float(setpoint - ispoint)
 
-        if not self.integral_enabled:
-            self.iterm = 0.0
-        elif self.ki > 0:
-            if self.cfg.stop_integral_windup:
-                if abs(self.kp * error) < window_size:
-                    self.iterm += (error * time_delta_secs * (1 / self.ki))
+        if self._control_enabled:
+            # There seems little point in winding up the integral if the
+            # P action alone will put the output above 100%.
+            if self.ki > 0 and abs(self.kp * error) <= window_size:
+                i_component = (error * time_delta_secs * (1 / self.ki))
             else:
-                self.iterm += (error * time_delta_secs * (1 / self.ki))
-
-        d_err = (error - self.last_err) / time_delta_secs
-        output = self.kp * error + self.iterm + self.kd * d_err
-        out4logs = output
-        output = sorted([-1 * window_size, output, window_size])[1]
+                i_component = 0.0
+            self.iterm += i_component
+            d_err = (error - self.last_err) / time_delta_secs
+            output = self.kp * error + self.iterm + self.kd * d_err
+        else:
+            # No integral action component until within the
+            # control window. P action should be sufficient to
+            # get temperature within the control window.
+            i_component = 0.0
+            self.iterm = i_component
+            d_err = 0
+            if error < 0:  # Too hot.
+                log.info("kiln outside pid control window, max cooling")
+                output = 0
+            else:
+                log.info("kiln outside pid control window, max heating")
+                output = window_size
         self.last_err = error
+        out4logs = output
 
-        if output < 0:
-            output = 0
-
+        # Limit to window size. No cooling, so low limit is 0.
+        output = sorted([0, output, window_size])[1]
+        # Scale to 0 -> 1
         output = float(output / window_size)
 
         self.pidstats = {
@@ -79,12 +90,14 @@ class PID:
             'out': output,
         }
 
-        log.info("pid actuals pid=%0.2f p=%0.2f i=%0.2f d=%0.2f" %
+        log.info("pid actuals pid=%0.2f p=%0.2f i=%0.2f d=%0.2f icomp=%0.2f error=%0.2f" %
                  (
                      out4logs,
                      self.kp * error,
                      self.iterm,
-                     self.kd * d_err
+                     self.kd * d_err,
+                     i_component,
+                     error
                  )
                  )
 
