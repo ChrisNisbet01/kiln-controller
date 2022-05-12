@@ -159,7 +159,7 @@ def calculate(filename, tangentdivisor, showplot):
     tangent_slope = (tangent_max[1] - tangent_min[1]) / (tangent_max[0] - tangent_min[0])
     tangent_offset = tangent_min[1] - line(tangent_slope, 0, tangent_min[0])
 
-    # determine the point at which the tangent line crosses the min/max temperaturess
+    # determine the point at which the tangent line crosses the min/max temperatures
     lower_crossing_x = invline(tangent_slope, tangent_offset, miny)
     upper_crossing_x = invline(tangent_slope, tangent_offset, maxy)
 
@@ -176,7 +176,7 @@ def calculate(filename, tangentdivisor, showplot):
 
     # output to the user
     print("pid_kp = %s" % Kp)
-    print("pid_ki = %s" % (1 / Ki))
+    print("pid_ki = %s" % Ki)
     print("pid_kd = %s" % Kd)
 
     if showplot:

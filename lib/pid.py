@@ -28,11 +28,6 @@ class PID:
     def disable_pid_control(self):
         self._control_enabled = False
 
-    # FIX - this was using a really small window where the PID control
-    # takes effect from -1 to 1. I changed this to various numbers and
-    # settled on -50 to 50 and then divide by 50 at the end. This results
-    # in a larger PID control window and much more accurate control...
-    # instead of what used to be binary on/off control.
     def compute(self, setpoint, ispoint) -> float:
         now = Time.now()
         time_delta_secs = (now - self.lastNow).total_seconds()
@@ -45,8 +40,8 @@ class PID:
         if self._control_enabled:
             # There seems little point in winding up the integral if the
             # P action alone will put the output above 100%.
-            if self.ki > 0 and abs(self.kp * error) <= window_size:
-                i_component = (error * time_delta_secs * (1 / self.ki))
+            if abs(self.kp * error) <= window_size:
+                i_component = (error * time_delta_secs * self.ki)
             else:
                 i_component = 0.0
             self.iterm += i_component

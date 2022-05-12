@@ -89,13 +89,10 @@ thermocouple: !Thermocouple
 #
 # These parameters control kiln temperature change. You must tune them
 # to work well with your specific kiln.
-# Note that the integral pid_ki is
-# inverted so that a smaller number means more integral action.
-
 pid: !PID
-  kp: 25   # Proportional
-  ki: 200  # Integral
-  kd: 200  # Derivative
+  kp: 25     # Proportional
+  ki: 0.005  # Integral
+  kd: 200    # Derivative
 
 ########################################################################
 #
