@@ -305,7 +305,7 @@ class Oven(Thread):
             'kwh_rate': self._cfg.kwh_rate,
             'currency_type': self._cfg.currency_type,
             'profile': self._profile.name if self._profile else None,
-            'pidstats': self._pid.pidstats,
+            'pidstats': self._pid.pidstats.asdict,
         }
         return state
 
@@ -438,11 +438,15 @@ class SimulatedOven(Oven):
         )
 
         time_left = self._total_time_secs - self._runtime_secs
-        log.info("temp=%.2f, target=%.2f, pid=%.3f, heat_on=%.2f, "
-                 "heat_off=%.2f, run_time=%d, total_runtime=%d, total_time=%d, time_left=%d"
-                 % (self.temp_sensor.temperature,
-                    self._target_temp,
-                    pid,
+        log.info("temp=%.2f, target=%.2f, error=%.2f, pid=%.2f, p=%.2f, i=%.2f, d=%.2f, "
+                 "heat_on=%.2f, heat_off=%.2f, run_time=%d, total_runtime=%d, total_time=%d, time_left=%d"
+                 % (self._pid.pidstats.ispoint,
+                    self._pid.pidstats.setpoint,
+                    self._pid.pidstats.err,
+                    self._pid.pidstats.pid,
+                    self._pid.pidstats.p,
+                    self._pid.pidstats.i,
+                    self._pid.pidstats.d,
                     heat_on_secs,
                     heat_off_secs,
                     self._runtime_secs,
@@ -451,6 +455,7 @@ class SimulatedOven(Oven):
                     time_left
                     )
                  )
+
         # This is a simulation so there's no need for separate heating/cooling
         # times.
         self._timer.start(self.time_step / self._speed)

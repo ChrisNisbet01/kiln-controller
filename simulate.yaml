@@ -91,7 +91,7 @@ thermocouple: !Thermocouple
 # to work well with your specific kiln.
 pid: !PID
   kp: 25     # Proportional
-  ki: 0.005  # Integral
+  ki: 0.02   # Integral
   kd: 200    # Derivative
 
 ########################################################################

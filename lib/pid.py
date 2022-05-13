@@ -1,5 +1,6 @@
 import logging
 import time
+from dataclasses import dataclass, asdict, KW_ONLY
 
 from lib.config_from_yaml import ConfigPID
 from lib.oven_time import Time
@@ -8,9 +9,33 @@ from lib.oven_time import Time
 log = logging.getLogger("PID")
 
 
+@dataclass(frozen=True)
+class PIDStats:
+    _: KW_ONLY
+    time: float = 0
+    time_delta_secs: float = 0
+    setpoint: float = 0
+    ispoint: float = 0
+    err: float = 0
+    errDelta: float = 0
+    p: float = 0
+    i: float = 0
+    d: float = 0
+    kp: float = 0
+    ki: float = 0
+    kd: float = 0
+    pid: float = 0
+    out: float = 0
+
+    @property
+    def asdict(self):
+        return asdict(self)
+
+
 class PID:
     cfg: ConfigPID
     _control_enabled: bool = True
+    pidstats: PIDStats
 
     def __init__(self, cfg: ConfigPID) -> None:
         self.cfg = cfg
@@ -20,7 +45,7 @@ class PID:
         self.lastNow = Time.now()
         self.iterm = 0
         self.last_err = 0
-        self.pidstats = {}
+        self.pidstats = PIDStats()
 
     def enable_pid_control(self):
         self._control_enabled = True
@@ -68,32 +93,21 @@ class PID:
         # Scale to 0 -> 1
         output = float(output / window_size)
 
-        self.pidstats = {
-            'time': time.mktime(now.timetuple()),
-            'time_delta_secs': time_delta_secs,
-            'setpoint': setpoint,
-            'ispoint': ispoint,
-            'err': error,
-            'errDelta': d_err,
-            'p': self.kp * error,
-            'i': self.iterm,
-            'd': self.kd * d_err,
-            'kp': self.kp,
-            'ki': self.ki,
-            'kd': self.kd,
-            'pid': out4logs,
-            'out': output,
-        }
-
-        log.info("pid actuals pid=%0.2f p=%0.2f i=%0.2f d=%0.2f icomp=%0.2f error=%0.2f" %
-                 (
-                     out4logs,
-                     self.kp * error,
-                     self.iterm,
-                     self.kd * d_err,
-                     i_component,
-                     error
-                 )
-                 )
+        self.pidstats = PIDStats(
+            time=time.mktime(now.timetuple()),
+            time_delta_secs=time_delta_secs,
+            setpoint=setpoint,
+            ispoint=ispoint,
+            err=error,
+            errDelta=d_err,
+            p=self.kp * error,
+            i=self.iterm,
+            d=self.kd * d_err,
+            kp=self.kp,
+            ki=self.ki,
+            kd=self.kd,
+            pid=out4logs,
+            out=output,
+        )
 
         return output
