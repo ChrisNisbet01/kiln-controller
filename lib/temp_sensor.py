@@ -3,6 +3,7 @@ import time
 from dataclasses import dataclass
 from enum import Enum, auto
 from queue import Queue
+from statistics import pstdev
 from threading import Thread
 from typing import Optional, Any, Protocol
 from lib.config_from_yaml import Config
@@ -76,6 +77,37 @@ class TempSensorSimulated:
         return self._temperature
 
 
+def _calculate_z_scores(samples: list, mu: Optional[float] = None) -> Optional[list]:
+    if mu is None:
+        mu = sum(samples)/len(samples)
+    sd = pstdev(samples, mu)
+    if sd == 0:
+        return None
+    z_scores = [(X - mu) / sd for X in samples]
+    return z_scores
+
+
+def _calculate_temperature(samples: list[float]) -> float:
+    if len(samples) == 0:
+        return 0
+    mu = sum(samples) / len(samples)
+    z_scores = _calculate_z_scores(samples, mu)
+    if not z_scores:  # All samples must be the same value.
+        return mu
+
+    # Filter out values where z score is too high. Hard-coded 'z' for now.
+    max_z = 2.0
+
+    def z_filter(samples_and_z_scores: tuple[float, float]):
+        sample, z_score = samples_and_z_scores
+        return abs(z_score) < max_z
+
+    filtered = filter(z_filter, zip(samples, z_scores))
+    filtered_samples = [tup[0] for tup in filtered]
+    mu = sum(filtered_samples) / len(filtered_samples)
+    return mu
+
+
 class TempSensorReal(Thread):
     """real temperature sensor thread that takes N measurements
        during the time_step"""
@@ -145,8 +177,7 @@ class TempSensorReal(Thread):
                       (self._noConnection, self._shortToGround, self._shortToVCC, self._unknownError))
             self._bad_count += 1
 
-        if len(temps):
-            self._temperature = sum(temps) / len(temps)
+        self._temperature = _calculate_temperature(temps)
 
     def _send_message(self, code: TempSensorMessageCode, data: Any = None) -> None:
         self._queue.put(TempSensorMessage(code=code, data=data))

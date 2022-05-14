@@ -1,6 +1,6 @@
 import logging
 import time
-from dataclasses import dataclass, asdict, KW_ONLY
+from dataclasses import dataclass, asdict
 
 from lib.config_from_yaml import ConfigPID
 from lib.oven_time import Time
@@ -11,7 +11,6 @@ log = logging.getLogger("PID")
 
 @dataclass(frozen=True)
 class PIDStats:
-    _: KW_ONLY
     time: float = 0
     time_delta_secs: float = 0
     setpoint: float = 0
