@@ -286,18 +286,7 @@ body {
     -webkit-box-shadow: 0 0 1.5em 0 rgba(0,0,0,0.55);
     box-shadow: 0 0 1.1em 0 rgba(0,0,0,0.55);
     background: #3F3E3A url('/kiln/assets/images/panel_bg.png') repeat;
-}
-
-.status-container .status-table:nth-of-type(1) > .column:nth-of-type(1) .heading {
-    -webkit-border-top-left-radius: 6px;
-    -moz-border-radius-topleft: 6px;
-    border-top-left-radius: 6px;
-}
-
-.status-container .status-table:nth-of-type(1) > .column:nth-last-child(1) .heading {
-    -webkit-border-top-right-radius: 6px;
-    -moz-border-radius-topright: 6px;
-    border-top-right-radius: 6px;
+    overflow: hidden;
 }
 
 .status-table {
@@ -305,6 +294,9 @@ body {
     grid-template-columns: 0fr 0fr 0fr 2fr 0fr 0fr;
 }
 
+.status__time {
+    width: 8em;
+}
 .status-table > .column:nth-last-child(1) {
   border-right: none;
 }
